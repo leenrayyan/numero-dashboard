@@ -1,0 +1,44 @@
+# --- Secrets & env ---
+.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+
+# --- Node / frontend ---
+node_modules/
+dist/
+.vite/
+*.log
+
+# --- Vector store (regenerated locally from train_vanna.py) ---
+backend/chroma_db/
+
+# --- Local development databases / caches ---
+*.sqlite
+*.sqlite3
+
+# --- Raw data archives (too big, regenerate locally) ---
+*.zip
+*.xlsx
+"Numero eSIM_purchases [2024 - 2025] (2)/"
+vn_clustered_users.csv
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# --- Claude harness ---
+.claude/launch.json
+
+# --- Deploy seed dumps are explicitly tracked (override) ---
+!backend/scripts/seed_data/
+!backend/scripts/seed_data/*.csv

@@ -1,0 +1,10 @@
+# Development-only deps. Install on your local machine for the full feature set
+# (Smart Query bar, training scripts, original xlsx ingestion):
+#   pip install -r requirements.txt -r requirements-dev.txt
+
+# NL-to-SQL — uses ChromaDB locally; not deployed to Render.
+vanna[chromadb]>=0.7.0,<2.0.0
+google-genai>=0.8.0
+
+# Reading the original .xlsx purchase data.
+openpyxl>=3.1.0

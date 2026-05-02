@@ -1,0 +1,2 @@
+id,run_at,n_clusters,algorithm,features_used,centroids,cluster_stats,is_active,notes
+1,2026-04-27 06:32:22.231721,3,MiniBatchKMeans,"['recency', 'customer_age', 'total_spent', 'purchase_frequency']",[],{},True,"Seeded from DF_Calls, DF_eSIM, DF_Virtual clustered CSVs"

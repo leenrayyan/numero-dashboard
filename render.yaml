@@ -1,0 +1,52 @@
+# Render Blueprint — describes the full stack so Render can deploy it
+# from a single click after you connect this repo. See DEPLOY.md for the
+# step-by-step guide.
+
+databases:
+  - name: numero-postgres
+    plan: free
+    databaseName: dormant_users
+    user: dormant_admin
+
+services:
+  # ─── Backend (FastAPI) ─────────────────────────────────────────────────
+  - type: web
+    name: numero-backend
+    runtime: python
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    # Runs once before each deploy. Idempotent — only seeds on first deploy.
+    preDeployCommand: python scripts/seed_from_dump.py
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: numero-postgres
+          property: connectionString
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      # CORS: filled in after the frontend deploys (see DEPLOY.md step 5).
+      - key: CORS_ORIGINS
+        sync: false
+      # Smart Query is disabled in production — these are unset on purpose.
+
+  # ─── Frontend (React + Vite static build) ─────────────────────────────
+  - type: web
+    name: numero-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    pullRequestPreviewsEnabled: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      # Filled in after the backend deploys (see DEPLOY.md step 4).
+      - key: VITE_API_URL
+        sync: false
+      - key: VITE_ENABLE_SMART_QUERY
+        value: "false"
