@@ -4,7 +4,6 @@
 @tailwind utilities;
 
 @layer base {
-  html { font-size: 18px; }
   body { @apply bg-gray-100 text-gray-800; font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; }
 }
 
