@@ -1,11 +1,11 @@
 """
-Runs ONCE on Render after first deploy. Imports the CSVs that export_local.py
-produced into the live Postgres database.
+Imports the CSVs that export_local.py produced into the live Postgres database.
 
-Idempotent: skips loading if `users` already has rows, so re-running on
-subsequent deploys is a no-op.
+Idempotent: skips loading if `users` already has rows, so calling this every
+boot is fine — it only does real work the first time.
 
-Render invokes this via the `predeploy` hook in render.yaml.
+Called automatically from `main.py`'s lifespan on app startup. Can also be run
+manually:  python scripts/seed_from_dump.py
 """
 import os
 import sys

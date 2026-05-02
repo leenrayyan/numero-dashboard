@@ -9,6 +9,18 @@ from routers import analytics, users, segmentation, clusters, query, campaigns, 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
+
+    # First-boot data seeding — runs only when the `users` table is empty,
+    # so subsequent deploys are no-ops. We do this here rather than in a
+    # preDeploy hook because Render's free tier doesn't allow predeploy hooks.
+    if os.getenv("AUTO_SEED", "true").lower() != "false":
+        try:
+            import asyncio
+            from scripts.seed_from_dump import seed
+            await asyncio.to_thread(seed)
+        except Exception as e:
+            print(f"[seed] skipped: {e}")
+
     yield
 
 
