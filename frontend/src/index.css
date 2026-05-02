@@ -4,6 +4,9 @@
 @tailwind utilities;
 
 @layer base {
+  /* 14.4px = 90% of the browser default. Dials the whole app down a notch
+     so it matches what you'd see at 90% browser zoom on a 1080p monitor. */
+  html { font-size: 14.4px; }
   body { @apply bg-gray-100 text-gray-800; font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; }
 }
 
