@@ -19,8 +19,10 @@ FILTER_PARAMS = dict(
 )
 
 
-def _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max):
-    return build_where(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max)
+def _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max,
+       platform=None, language=None):
+    return build_where(segment, min_recency, max_recency, user_ids, country, product_group,
+                       spend_min, spend_max, platform=platform, language=language)
 
 
 @router.get("/overview")
@@ -34,8 +36,10 @@ async def get_overview(
     product_group: Optional[str] = Query(None),
     spend_min: Optional[float]   = Query(None),
     spend_max: Optional[float]   = Query(None),
+    platform: Optional[str]      = Query(None),
+    language: Optional[str]      = Query(None),
 ):
-    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max)
+    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language)
     row = (await db.execute(text(f"""
         SELECT
             COUNT(*)              AS total,
@@ -69,8 +73,10 @@ async def get_activity_trend(
     product_group: Optional[str] = Query(None),
     spend_min: Optional[float]   = Query(None),
     spend_max: Optional[float]   = Query(None),
+    platform: Optional[str]      = Query(None),
+    language: Optional[str]      = Query(None),
 ):
-    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max)
+    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language)
     result = await db.execute(text(f"""
         SELECT DATE_TRUNC('month', last_purchase) AS month,
                COUNT(*) AS user_count, AVG(total_spent) AS avg_spend
@@ -95,8 +101,10 @@ async def get_dormant_by_recency(
     product_group: Optional[str] = Query(None),
     spend_min: Optional[float]   = Query(None),
     spend_max: Optional[float]   = Query(None),
+    platform: Optional[str]      = Query(None),
+    language: Optional[str]      = Query(None),
 ):
-    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max)
+    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language)
     result = await db.execute(text(f"""
         SELECT CASE
             WHEN recency BETWEEN 0   AND 89  THEN '0-90d'
@@ -121,9 +129,11 @@ async def get_segment_trend(
     product_group: Optional[str] = Query(None),
     spend_min: Optional[float]   = Query(None),
     spend_max: Optional[float]   = Query(None),
+    platform: Optional[str]      = Query(None),
+    language: Optional[str]      = Query(None),
 ):
     """Monthly user counts split by segment — feeds the stacked-area trend chart."""
-    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max)
+    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language)
     result = await db.execute(text(f"""
         SELECT DATE_TRUNC('month', last_purchase) AS month,
                segment, COUNT(*) AS user_count
@@ -159,8 +169,10 @@ async def get_segment_summary(
     product_group: Optional[str] = Query(None),
     spend_min: Optional[float]   = Query(None),
     spend_max: Optional[float]   = Query(None),
+    platform: Optional[str]      = Query(None),
+    language: Optional[str]      = Query(None),
 ):
-    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max)
+    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language)
     result = await db.execute(text(f"""
         SELECT cluster_id, segment, COUNT(*) AS user_count,
                AVG(total_spent) AS avg_monetary, AVG(recency) AS avg_recency,

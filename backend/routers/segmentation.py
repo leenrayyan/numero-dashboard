@@ -10,19 +10,25 @@ router = APIRouter()
 # Numero-brand palette — kept in sync with frontend/src/constants/colors.js.
 # Cool blue→purple→rose spectrum derived from the logo gradient.
 SEGMENT_COLORS = {
-    "High Value Loyal":             "#4FA88C",  # sage green (positive/loyal)
-    "High Value Customers":         "#5B3A9E",  # brand purple (premium)
-    "High Value At-Risk":           "#C56988",  # soft rose (warning)
-    "Mid Value At-Risk":            "#8A5DB5",  # mid purple
-    "Low Value Active":             "#4A90C8",  # light blue
-    "New / Low-Value Active Users": "#D8896B",  # cool coral (fresh/new)
-    "Churned / At-Risk Users":      "#B0456E",  # brand rose (danger)
-    "Occasional High Spenders":     "#7050B5",  # light purple
+    # Calls
+    "Calls - High Value Loyal (At Risk)":      "#B0456E",
+    "Calls - Low Value Active":                "#4A90C8",
+    "Calls - Frequent Low Spenders (Cooling)": "#8A5DB5",
+    # eSIM
+    "eSIM - High Value Users (At Risk)":       "#C56988",
+    "eSIM - Low Value Inactive":               "#7050B5",
+    "eSIM - Mid Value Active":                 "#4FA88C",
+    # Virtual
+    "Virtual - High Value Loyal (At Risk)":    "#5B3A9E",
+    "Virtual - Mid Value Inactive":            "#D8896B",
+    "Virtual - Low Value Active":              "#2A7FB8",
 }
 
 
-def _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max):
-    return build_where(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max)
+def _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max,
+       platform=None, language=None):
+    return build_where(segment, min_recency, max_recency, user_ids, country, product_group,
+                       spend_min, spend_max, platform=platform, language=language)
 
 
 @router.get("/")
@@ -36,8 +42,10 @@ async def get_segmentation(
     product_group: Optional[str] = Query(None),
     spend_min: Optional[float]   = Query(None),
     spend_max: Optional[float]   = Query(None),
+    platform: Optional[str]      = Query(None),
+    language: Optional[str]      = Query(None),
 ):
-    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max)
+    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language)
     result = await db.execute(text(f"""
         SELECT cluster_id, segment, primary_product_group,
                COUNT(*)                AS user_count,
@@ -88,8 +96,10 @@ async def get_revenue_by_segment(
     product_group: Optional[str] = Query(None),
     spend_min: Optional[float]   = Query(None),
     spend_max: Optional[float]   = Query(None),
+    platform: Optional[str]      = Query(None),
+    language: Optional[str]      = Query(None),
 ):
-    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max)
+    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language)
     result = await db.execute(text(f"""
         SELECT segment, SUM(total_spent) AS total_revenue
         FROM users WHERE segment IS NOT NULL AND {where}

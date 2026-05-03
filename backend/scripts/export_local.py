@@ -33,7 +33,7 @@ def export():
     with engine.connect() as conn:
         for table in TABLES:
             out_path = os.path.join(OUT_DIR, f"{table}.csv")
-            print(f"Exporting {table} → {out_path}")
+            print(f"Exporting {table} -> {out_path}")
             result = conn.execute(text(f"SELECT * FROM {table}"))
             cols = result.keys()
             rows = result.fetchall()

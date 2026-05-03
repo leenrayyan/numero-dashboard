@@ -21,6 +21,32 @@ async def get_countries(db: AsyncSession = Depends(get_db)):
     return [{"country": r.country, "count": r.count} for r in result.fetchall()]
 
 
+@router.get("/platforms")
+async def get_platforms(db: AsyncSession = Depends(get_db)):
+    """Distinct platforms (iOS / Android) with user counts."""
+    result = await db.execute(text("""
+        SELECT platform, COUNT(*) AS count
+        FROM users
+        WHERE platform IS NOT NULL
+        GROUP BY platform
+        ORDER BY count DESC
+    """))
+    return [{"platform": r.platform, "count": r.count} for r in result.fetchall()]
+
+
+@router.get("/languages")
+async def get_languages(db: AsyncSession = Depends(get_db)):
+    """Distinct languages with user counts."""
+    result = await db.execute(text("""
+        SELECT language, COUNT(*) AS count
+        FROM users
+        WHERE language IS NOT NULL
+        GROUP BY language
+        ORDER BY count DESC
+    """))
+    return [{"language": r.language, "count": r.count} for r in result.fetchall()]
+
+
 @router.get("/")
 async def list_users(
     db: AsyncSession = Depends(get_db),
@@ -37,10 +63,13 @@ async def list_users(
     spend_max:     Optional[float] = Query(None),
     min_age:       Optional[int]  = Query(None),
     max_age:       Optional[int]  = Query(None),
+    platform:      Optional[str]  = Query(None),
+    language:      Optional[str]  = Query(None),
 ):
     where, params = build_where(
         segment, min_recency, max_recency, user_ids,
         country, product_group, spend_min, spend_max, min_age, max_age,
+        platform, language,
     )
 
     # Optional user ID search
@@ -59,6 +88,8 @@ async def list_users(
     )
     total = count_result.scalar() or 0
 
+    # phone_number is intentionally NOT selected — it's PII used only by the
+    # WhatsApp campaign sender, never displayed in the dashboard UI.
     rows = await db.execute(text(f"""
         SELECT
             id_client, segment, primary_product_group,
@@ -66,7 +97,8 @@ async def list_users(
             cluster_id, calls_spent, esim_spent, virtual_spent,
             calls_frequency, esim_frequency, virtual_frequency,
             calls_cluster, esim_cluster, virtual_cluster,
-            phone_number, whatsapp_opted_in, reactivation_score,
+            platform, language,
+            whatsapp_opted_in, reactivation_score,
             register_date, first_purchase, last_purchase, customer_age
         FROM users
         WHERE {where}
@@ -97,6 +129,8 @@ async def get_user(user_id: int, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
 
     u = dict(zip(result.keys(), row))
+    # Strip PII before returning to the dashboard UI.
+    u.pop("phone_number", None)
     for col in ("register_date", "first_purchase", "last_purchase"):
         if u.get(col) is not None:
             u[col] = u[col].isoformat()

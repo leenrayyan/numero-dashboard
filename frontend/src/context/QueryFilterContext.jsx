@@ -15,6 +15,8 @@ const EMPTY = {
   spendMax:     null,
   ageMin:       null,
   ageMax:       null,
+  platform:     null,
+  language:     null,
   waReachable:  false,
   lassoUserIds: null,
 };
@@ -28,6 +30,8 @@ export function QueryFilterProvider({ children }) {
   const setProductType = useCallback((pt) => setFilters(f => ({ ...f, productType: pt || null })), []);
   const setSpend       = useCallback((min, max) => setFilters(f => ({ ...f, spendMin: min ?? null, spendMax: max ?? null })), []);
   const setAge         = useCallback((min, max) => setFilters(f => ({ ...f, ageMin: min ?? null, ageMax: max ?? null })), []);
+  const setPlatform    = useCallback((p) => setFilters(f => ({ ...f, platform: p || null })), []);
+  const setLanguage    = useCallback((l) => setFilters(f => ({ ...f, language: l || null })), []);
   const setWaReachable = useCallback((val) => setFilters(f => ({ ...f, waReachable: !!val })), []);
   const setLasso       = useCallback((ids) => setFilters(f => ({ ...f, lassoUserIds: ids?.length ? ids : null })), []);
   const clearLasso     = useCallback(() => setFilters(f => ({ ...f, lassoUserIds: null })), []);
@@ -60,6 +64,8 @@ export function QueryFilterProvider({ children }) {
     ...(filters.spendMax    != null    && { spend_max:     filters.spendMax }),
     ...(filters.ageMin      != null    && { min_age:       filters.ageMin }),
     ...(filters.ageMax      != null    && { max_age:       filters.ageMax }),
+    ...(filters.platform               && { platform:      filters.platform }),
+    ...(filters.language               && { language:      filters.language }),
     ...(filters.waReachable            && { wa_reachable:  true }),
     ...(userIdsStr                     && { user_ids:      userIdsStr }),
   };
@@ -70,8 +76,8 @@ export function QueryFilterProvider({ children }) {
     filters.segment || filters.recencyMin != null ||
     filters.nlUserIds || filters.country ||
     filters.productType || filters.spendMin != null ||
-    filters.ageMin != null || filters.waReachable ||
-    filters.lassoUserIds
+    filters.ageMin != null || filters.platform || filters.language ||
+    filters.waReachable || filters.lassoUserIds
   );
 
   const selectedUserCount = activeUserIds?.length ?? null;
@@ -80,7 +86,7 @@ export function QueryFilterProvider({ children }) {
     <GlobalFilterContext.Provider value={{
       filters, apiParams, userApiParams, hasActiveFilter, selectedUserCount,
       setSegment, setRecency, setCountry, setProductType, setSpend,
-      setAge, setWaReachable,
+      setAge, setPlatform, setLanguage, setWaReachable,
       setLasso, clearLasso, setNLFilter, clearNL, clearAll,
       activeFilter: filters.nlQuestion
         ? { question: filters.nlQuestion, summary: filters.nlSummary, userIds: filters.nlUserIds }

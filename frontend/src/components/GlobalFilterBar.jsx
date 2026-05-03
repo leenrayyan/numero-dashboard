@@ -6,9 +6,18 @@ import { useGlobalFilter } from "../context/QueryFilterContext";
 import { users as usersApi } from "../api";
 
 const SEGMENTS = [
-  "High Value Loyal", "High Value Customers", "High Value At-Risk",
-  "Mid Value At-Risk", "Occasional High Spenders",
-  "Low Value Active", "New / Low-Value Active Users", "Churned / At-Risk Users",
+  // Calls
+  "Calls - High Value Loyal (At Risk)",
+  "Calls - Low Value Active",
+  "Calls - Frequent Low Spenders (Cooling)",
+  // eSIM
+  "eSIM - High Value Users (At Risk)",
+  "eSIM - Mid Value Active",
+  "eSIM - Low Value Inactive",
+  // Virtual
+  "Virtual - High Value Loyal (At Risk)",
+  "Virtual - Low Value Active",
+  "Virtual - Mid Value Inactive",
 ];
 
 const PRODUCTS = ["Calls", "Data eSIM", "Virtual Number"];
@@ -90,6 +99,63 @@ function Dropdown({ label, value, options, onSelect, onClear, activeColor = KPI.
   );
 }
 
+/**
+ * Generic distinct-values dropdown with counts (used by Platform & Language).
+ * Pulls the list from the API once and shows it as a clickable list.
+ */
+function DistinctDropdown({ label, value, fetcher, valueKey, activeColor, onSelect, onClear }) {
+  const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState([]);
+  const ref = useRef();
+  useClickOutside(ref, () => setOpen(false));
+
+  useEffect(() => {
+    fetcher().then(r => setOptions(r.data)).catch(() => {});
+  }, [fetcher]);
+
+  const active = !!value;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border transition-all whitespace-nowrap ${
+          active
+            ? "text-white border-transparent shadow-sm"
+            : "border-gray-200 text-gray-600 bg-white hover:border-purple-300 hover:text-purple-700 shadow-sm"
+        }`}
+        style={active ? { backgroundColor: activeColor } : {}}
+      >
+        {active ? value : label}
+        {active ? (
+          <span onClick={(e) => { e.stopPropagation(); onClear(); }} className="hover:opacity-70 ml-0.5 cursor-pointer">
+            <X size={12} />
+          </span>
+        ) : (
+          <ChevronDown size={12} className="text-gray-400" />
+        )}
+      </button>
+
+      {open && (
+        <div className="absolute z-50 top-9 left-0 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[200px] py-1.5 overflow-hidden">
+          {options.map(opt => (
+            <button
+              key={opt[valueKey]}
+              onClick={() => { onSelect(opt[valueKey]); setOpen(false); }}
+              className={`w-full text-left text-sm px-4 py-2.5 hover:bg-purple-50 hover:text-purple-700 flex justify-between items-center ${
+                value === opt[valueKey] ? "bg-purple-50 text-purple-700 font-semibold" : "text-gray-700"
+              }`}
+            >
+              <span className="capitalize">{opt[valueKey]}</span>
+              <span className="text-gray-400 text-xs">{opt.count?.toLocaleString()}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CountryDropdown({ value, onSelect, onClear }) {
   const [open, setOpen]     = useState(false);
   const [search, setSearch] = useState("");
@@ -156,7 +222,8 @@ export default function GlobalFilterBar() {
   const location = useLocation();
   const {
     filters, hasActiveFilter,
-    setSegment, setRecency, setCountry, setProductType, setSpend, setAge, setWaReachable,
+    setSegment, setRecency, setCountry, setProductType, setSpend, setAge,
+    setPlatform, setLanguage, setWaReachable,
     clearNL, clearLasso, clearAll,
   } = useGlobalFilter();
 
@@ -176,7 +243,8 @@ export default function GlobalFilterBar() {
 
   const activeCount = [
     filters.segment, filters.productType, recencyLabel,
-    filters.country, spendLabel, filters.nlUserIds, filters.lassoUserIds,
+    filters.country, spendLabel, filters.platform, filters.language,
+    filters.nlUserIds, filters.lassoUserIds,
   ].filter(Boolean).length;
 
   return (
@@ -247,6 +315,26 @@ export default function GlobalFilterBar() {
           onSelect={opt => setAge(opt.min, opt.max)}
           onClear={() => setAge(null, null)}
           activeColor={KPI.purple}
+        />
+
+        <DistinctDropdown
+          label="Platform"
+          value={filters.platform}
+          fetcher={usersApi.platforms}
+          valueKey="platform"
+          activeColor={KPI.green}
+          onSelect={(v) => setPlatform(v)}
+          onClear={() => setPlatform(null)}
+        />
+
+        <DistinctDropdown
+          label="Language"
+          value={filters.language}
+          fetcher={usersApi.languages}
+          valueKey="language"
+          activeColor={KPI.coral}
+          onSelect={(v) => setLanguage(v)}
+          onClear={() => setLanguage(null)}
         />
 
         {/* NL chip */}

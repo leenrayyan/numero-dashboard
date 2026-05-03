@@ -19,9 +19,15 @@ const PRODUCT_TABS = [
 ];
 
 const SEGMENT_OPTIONS = [
-  "High Value Loyal", "Mid Value At-Risk", "Low Value Active",
-  "High Value Customers", "Churned / At-Risk Users", "New / Low-Value Active Users",
-  "High Value At-Risk", "Occasional High Spenders",
+  "Calls - High Value Loyal (At Risk)",
+  "Calls - Low Value Active",
+  "Calls - Frequent Low Spenders (Cooling)",
+  "eSIM - High Value Users (At Risk)",
+  "eSIM - Mid Value Active",
+  "eSIM - Low Value Inactive",
+  "Virtual - High Value Loyal (At Risk)",
+  "Virtual - Low Value Active",
+  "Virtual - Mid Value Inactive",
 ];
 
 const SEGMENT_COLORS = SEG_COLORS;

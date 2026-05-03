@@ -16,6 +16,8 @@ def build_where(
     spend_max: Optional[float] = None,
     min_age: Optional[int] = None,
     max_age: Optional[int] = None,
+    platform: Optional[str] = None,
+    language: Optional[str] = None,
 ) -> tuple[str, dict]:
     conditions = ["1=1"]
     params: dict = {}
@@ -51,5 +53,11 @@ def build_where(
     if max_age is not None:
         conditions.append("customer_age <= :max_age")
         params["max_age"] = max_age
+    if platform:
+        conditions.append("platform = :platform")
+        params["platform"] = platform
+    if language:
+        conditions.append("language = :language")
+        params["language"] = language
 
     return " AND ".join(conditions), params

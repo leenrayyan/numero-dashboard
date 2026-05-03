@@ -51,14 +51,20 @@ async def export_users(
     spend_max:     Optional[float] = Query(None),
     min_age:       Optional[int]   = Query(None),
     max_age:       Optional[int]   = Query(None),
+    platform:      Optional[str]   = Query(None),
+    language:      Optional[str]   = Query(None),
 ):
     where, params = build_where(
         segment, min_recency, max_recency, user_ids,
         country, product_group, spend_min, spend_max, min_age, max_age,
+        platform, language,
     )
+    # phone_number is intentionally included in the export — this is the data
+    # path the WhatsApp campaign sender consumes. UI views never expose it.
     result = await db.execute(text(f"""
         SELECT
             id_client, segment, primary_product_group, user_country,
+            platform, language,
             recency, customer_age, total_spent, purchase_frequency,
             calls_spent, esim_spent, virtual_spent,
             calls_frequency, esim_frequency, virtual_frequency,

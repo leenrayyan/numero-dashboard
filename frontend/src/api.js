@@ -20,6 +20,8 @@ export const users = {
   list:      (params) => api.get("/api/users/",          { params }),
   get:       (id)     => api.get(`/api/users/${id}`),
   countries: ()       => api.get("/api/users/countries"),
+  platforms: ()       => api.get("/api/users/platforms"),
+  languages: ()       => api.get("/api/users/languages"),
 };
 
 export const segmentation = {

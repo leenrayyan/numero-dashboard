@@ -34,18 +34,24 @@ export const KPI_GRADIENTS = {
 };
 
 // Cohesive segment palette — cool brand spectrum (blues/purples/rose) with
-// a sage green and cool coral added as semantic accents.
-// Loyal ⇒ green (healthy) · Premium ⇒ purple · New ⇒ coral (fresh/welcoming) ·
-// Active ⇒ blue · At-risk/churn ⇒ rose.
+// sage green + cool coral as semantic accents. The 9 new cluster names follow
+// the `<Product> - <Tier>` convention; we colour-code by tier semantics, not
+// by product, so loyal-at-risk is always rose-ish whether it's Calls or eSIM.
 export const SEGMENT_COLORS = {
-  "High Value Loyal":             "#4FA88C", // sage green (positive/loyal)
-  "High Value Customers":         "#5B3A9E", // brand purple (premium)
-  "High Value At-Risk":           "#C56988", // soft rose (warning)
-  "Mid Value At-Risk":            "#8A5DB5", // mid purple
-  "Low Value Active":             "#4A90C8", // light blue
-  "New / Low-Value Active Users": "#D8896B", // cool coral (fresh/new)
-  "Churned / At-Risk Users":      "#B0456E", // brand rose (danger)
-  "Occasional High Spenders":     "#7050B5", // light purple
+  // Calls
+  "Calls - High Value Loyal (At Risk)":      "#B0456E", // brand rose (high-value but slipping)
+  "Calls - Low Value Active":                "#4A90C8", // light blue (active)
+  "Calls - Frequent Low Spenders (Cooling)": "#8A5DB5", // mid purple (frequent but cooling)
+
+  // eSIM
+  "eSIM - High Value Users (At Risk)":       "#C56988", // soft rose (warning)
+  "eSIM - Low Value Inactive":               "#7050B5", // light purple (inactive)
+  "eSIM - Mid Value Active":                 "#4FA88C", // sage green (healthy)
+
+  // Virtual
+  "Virtual - High Value Loyal (At Risk)":    "#5B3A9E", // brand purple (premium / at risk)
+  "Virtual - Mid Value Inactive":            "#D8896B", // cool coral (mid / cooling)
+  "Virtual - Low Value Active":              "#2A7FB8", // brand blue (active)
 };
 
 export const PRODUCT_COLORS = {

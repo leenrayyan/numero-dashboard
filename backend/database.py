@@ -39,5 +39,14 @@ async def get_db():
 
 
 async def init_db():
+    """Create tables on startup. If RESET_DB=true, wipe `users` and `cluster_runs`
+    first so the next seed run repopulates them — used when shipping a new dataset.
+    Toggle the env var on Render once, deploy, then unset it."""
+    reset = os.getenv("RESET_DB", "").lower() in ("1", "true", "yes")
     async with engine.begin() as conn:
+        if reset:
+            from sqlalchemy import text
+            print("[init_db] RESET_DB=true — dropping users and cluster_runs tables")
+            await conn.execute(text("DROP TABLE IF EXISTS users CASCADE"))
+            await conn.execute(text("DROP TABLE IF EXISTS cluster_runs CASCADE"))
         await conn.run_sync(Base.metadata.create_all)

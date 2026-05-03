@@ -40,8 +40,15 @@ class User(Base):
     cluster_id            = Column(Integer, nullable=True, index=True)
     segment               = Column(Text, nullable=True, index=True)   # cluster_name from primary product
 
-    # Campaign & reactivation tracking
+    # User attributes from purchase data — used as filter dimensions in the dashboard.
+    # phone_number is NOT exposed in the dashboard UI; it's used only by the WhatsApp
+    # campaign sender. platform / language / email are the new filterable dimensions.
     phone_number          = Column(Text, nullable=True)               # WhatsApp number (E.164 without +)
+    platform              = Column(Text, nullable=True, index=True)   # iOS / Android
+    language              = Column(Text, nullable=True, index=True)   # english / french / spanish / arabic
+    email                 = Column(Text, nullable=True)               # nullable — ~85% null in source data
+
+    # Campaign & reactivation tracking
     whatsapp_opted_in     = Column(Boolean, default=True, nullable=True)
     last_campaign_at      = Column(DateTime, nullable=True)           # last time a campaign was sent to this user
     campaigns_sent        = Column(Integer, default=0, nullable=True)
