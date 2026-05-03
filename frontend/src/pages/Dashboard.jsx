@@ -141,9 +141,14 @@ export default function Dashboard() {
   // Power BI–style cross-filtering: clicks on visuals push their value into the
   // global filter context (top filter bar reflects the change). Clicking the
   // already-active value toggles it off. Disabled when crossFilter === false.
+  // Categorical filters are arrays so we toggle the clicked value in/out of the
+  // array rather than swapping a single value.
   function handleSegmentClick(data) {
     if (!crossFilter || !data?.segment) return;
-    setGlobalSegment(filters.segment === data.segment ? null : data.segment);
+    const cur = filters.segment ?? [];
+    setGlobalSegment(cur.includes(data.segment)
+      ? cur.filter(s => s !== data.segment)
+      : [...cur, data.segment]);
   }
 
   function handleRecencyClick(data) {
@@ -156,7 +161,10 @@ export default function Dashboard() {
 
   function handleProductClick(data) {
     if (!crossFilter || !data?.name) return;
-    setGlobalProductType(filters.productType === data.name ? null : data.name);
+    const cur = filters.productType ?? [];
+    setGlobalProductType(cur.includes(data.name)
+      ? cur.filter(p => p !== data.name)
+      : [...cur, data.name]);
   }
 
   const fmt    = (n) => n != null ? n.toLocaleString() : "—";

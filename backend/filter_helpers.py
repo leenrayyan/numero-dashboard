@@ -1,8 +1,33 @@
 """
 Shared filter helpers used across all routers.
 Builds safe parameterised WHERE clauses from the common filter set.
+
+Categorical filters (segment, country, product_group, platform, language)
+accept either a single value or a comma-separated list. Single values use `=`,
+lists use `IN (...)` — same UX shape as the multi-select dropdowns in the
+frontend filter bar.
 """
 from typing import Optional
+
+
+def _multi_clause(column: str, raw: str, key_prefix: str, params: dict) -> Optional[str]:
+    """Convert a comma-separated string into either `col = :x` or `col IN (...)`.
+    Mutates `params` in place. Returns the SQL fragment, or None if `raw` is empty.
+    """
+    if not raw:
+        return None
+    values = [v.strip() for v in raw.split(",") if v.strip()]
+    if not values:
+        return None
+    if len(values) == 1:
+        params[key_prefix] = values[0]
+        return f"{column} = :{key_prefix}"
+    placeholders = []
+    for i, v in enumerate(values):
+        k = f"{key_prefix}_{i}"
+        placeholders.append(f":{k}")
+        params[k] = v
+    return f"{column} IN ({', '.join(placeholders)})"
 
 
 def build_where(
@@ -22,35 +47,25 @@ def build_where(
     conditions = ["1=1"]
     params: dict = {}
 
-    if segment:
-        conditions.append("segment = :segment")
-        params["segment"] = segment
+    # Categorical multi-value filters.
+    for col, raw, prefix in [
+        ("segment",               segment,       "segment"),
+        ("user_country",          country,       "country"),
+        ("primary_product_group", product_group, "product_group"),
+        ("platform",              platform,      "platform"),
+        ("language",              language,      "language"),
+    ]:
+        clause = _multi_clause(col, raw, prefix, params)
+        if clause:
+            conditions.append(clause)
+
+    # Range filters (single-value, intentionally not multi).
     if min_recency is not None:
         conditions.append("recency >= :min_recency")
         params["min_recency"] = min_recency
     if max_recency is not None:
         conditions.append("recency <= :max_recency")
         params["max_recency"] = max_recency
-    if user_ids:
-        ids = [int(x) for x in user_ids.split(",") if x.strip().isdigit()]
-        if ids:
-            conditions.append(f"id_client = ANY(ARRAY[{','.join(str(i) for i in ids)}])")
-    if country:
-        # Multi-select support: comma-separated country list → IN (...).
-        countries = [c.strip() for c in country.split(",") if c.strip()]
-        if len(countries) == 1:
-            conditions.append("user_country = :country")
-            params["country"] = countries[0]
-        elif len(countries) > 1:
-            placeholders = []
-            for i, c in enumerate(countries):
-                key = f"country_{i}"
-                placeholders.append(f":{key}")
-                params[key] = c
-            conditions.append(f"user_country IN ({', '.join(placeholders)})")
-    if product_group:
-        conditions.append("primary_product_group = :product_group")
-        params["product_group"] = product_group
     if spend_min is not None:
         conditions.append("total_spent >= :spend_min")
         params["spend_min"] = spend_min
@@ -63,11 +78,11 @@ def build_where(
     if max_age is not None:
         conditions.append("customer_age <= :max_age")
         params["max_age"] = max_age
-    if platform:
-        conditions.append("platform = :platform")
-        params["platform"] = platform
-    if language:
-        conditions.append("language = :language")
-        params["language"] = language
+
+    # User-ID list (numeric IN clause built inline since it's always a list).
+    if user_ids:
+        ids = [int(x) for x in user_ids.split(",") if x.strip().isdigit()]
+        if ids:
+            conditions.append(f"id_client = ANY(ARRAY[{','.join(str(i) for i in ids)}])")
 
     return " AND ".join(conditions), params

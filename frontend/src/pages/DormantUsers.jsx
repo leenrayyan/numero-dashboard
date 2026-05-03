@@ -92,21 +92,32 @@ export default function DormantUsers() {
 
       <SmartQueryBar />
 
-      {/* Product type tabs */}
+      {/* Product type tabs — these are a quick shortcut for the multi-select Product
+          filter in the global bar. Clicking a tab REPLACES whatever's selected;
+          "All Products" clears the filter entirely. */}
       <div className="flex gap-1 mb-5 bg-white rounded-xl p-1 border border-gray-200 w-fit">
-        {PRODUCT_TABS.map(({ label, value }) => (
-          <button
-            key={label}
-            onClick={() => { setGlobalProductType(value); setPage(1); }}
-            className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
-              filters.productType === value
-                ? "bg-purple-600 text-white shadow"
-                : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+        {PRODUCT_TABS.map(({ label, value }) => {
+          // Tab is "active" when its single value exactly equals the current selection
+          // (or both are empty for "All Products").
+          const selected = filters.productType ?? [];
+          const isAll = value == null;
+          const active = isAll
+            ? selected.length === 0
+            : selected.length === 1 && selected[0] === value;
+          return (
+            <button
+              key={label}
+              onClick={() => { setGlobalProductType(value ? [value] : []); setPage(1); }}
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                active
+                  ? "bg-purple-600 text-white shadow"
+                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
       </div>
 
       {/* KPI Cards */}
@@ -141,11 +152,18 @@ export default function DormantUsers() {
         <p className="text-sm text-gray-400 mb-3">All clusters across products with their key metrics</p>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {segmentTotals.map(s => {
-            const active = filters.segment === s.segment;
+            const active = filters.segment?.includes(s.segment);
             return (
               <button
                 key={s.segment}
-                onClick={() => { setGlobalSegment(active ? null : s.segment); setPage(1); }}
+                onClick={() => {
+                  // Toggle this segment in the multi-select segment filter.
+                  const next = active
+                    ? filters.segment.filter(x => x !== s.segment)
+                    : [...(filters.segment || []), s.segment];
+                  setGlobalSegment(next);
+                  setPage(1);
+                }}
                 className={`text-left rounded-xl border transition-shadow hover:shadow-md p-3 ${
                   active ? "ring-2" : "border-gray-100"
                 }`}

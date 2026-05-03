@@ -92,11 +92,16 @@ function matchOffer(segment, productGroup, recencyMin) {
 }
 
 function buildMessage(offer, filters) {
+  // productType is a multi-select array — take the first selected (if any) for
+  // the message copy. Multi-product campaigns fall back to the generic phrasing.
+  const firstProduct = Array.isArray(filters.productType) && filters.productType.length === 1
+    ? filters.productType[0]
+    : null;
   const productLine = {
     "Calls":          "calling credits & recharge offers",
     "Data eSIM":      "eSIM data plans",
     "Virtual Number": "virtual number plans",
-  }[filters.productType] || "Numero products";
+  }[firstProduct] || "Numero products";
 
   return `Hi [First Name] 👋
 
@@ -402,8 +407,12 @@ export default function Campaigns() {
   const [nameError,       setNameError]      = useState(false);
   const [copied,          setCopied]         = useState(false);
 
-  /* AI recommendation */
-  const rec = matchOffer(filters.segment, filters.productType, filters.recencyMin);
+  /* AI recommendation — pass first-selected segment/product so the offer matcher
+     keeps working with the new multi-select shape. Multi-segment audiences
+     fall through to the generic offers. */
+  const firstSegment = filters.segment?.[0] ?? null;
+  const firstProduct = filters.productType?.[0] ?? null;
+  const rec = matchOffer(firstSegment, firstProduct, filters.recencyMin);
   const activeCode  = selectedCode || rec.code;
   const activeOffer = OFFERS.find(o => o.code === activeCode) || OFFERS[0];
   const messageText = buildMessage(activeOffer, filters);
@@ -438,8 +447,12 @@ export default function Campaigns() {
     campaignsApi.list({}).then(r => setPastCampaigns(r.data || [])).catch(() => {});
   }, []);
 
-  /* Reset override when product/segment filter changes */
-  useEffect(() => { setSelectedCode(null); }, [filters.segment, filters.productType]);
+  /* Reset override when product/segment filter changes — stringify the arrays
+     so React doesn't retrigger every render on identity change. */
+  useEffect(() => { setSelectedCode(null); }, [
+    filters.segment?.join("|"),
+    filters.productType?.join("|"),
+  ]);
 
   /* Send */
   async function handleSend() {
@@ -451,8 +464,8 @@ export default function Campaigns() {
         name:               campaignName.trim(),
         offer_code:         activeCode,
         message_template:   messageText,
-        segment_filter:     filters.segment     || null,
-        product_filter:     filters.productType || null,
+        segment_filter:     filters.segment?.length     > 0 ? filters.segment.join(",")     : null,
+        product_filter:     filters.productType?.length > 0 ? filters.productType.join(",") : null,
         country_filter:     filters.country?.length > 0 ? filters.country.join(",") : null,
         recency_min_filter: filters.recencyMin  ?? null,
         recency_max_filter: filters.recencyMax  ?? null,
@@ -478,7 +491,7 @@ export default function Campaigns() {
       message_template:   messageText,
       segment_filter:     filters.segment     || null,
       product_filter:     filters.productType || null,
-      country_filter:     filters.country     || null,
+      country_filter:     filters.country?.length > 0 ? filters.country.join(",") : null,
       recency_min_filter: filters.recencyMin  ?? null,
       recency_max_filter: filters.recencyMax  ?? null,
       total_targeted:     stats?.total_users  || selectedUserCount || 0,
@@ -495,11 +508,17 @@ export default function Campaigns() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  // Compact label for an array filter — shows first value plus a "+N" suffix
+  // when there are more selected, so the chip doesn't blow up to many lines.
+  const arrLabel = (arr) => arr.length === 1 ? arr[0] : `${arr[0]} +${arr.length - 1}`;
+
   /* Filter chips for display */
   const filterChips = [
-    filters.segment      && { label: `Segment: ${filters.segment}`,                        color: SEGMENT_COLORS[filters.segment] || KPI.purple },
-    filters.productType  && { label: `Product: ${filters.productType}`,                    color: KPI.purple },
-    filters.country?.length > 0 && { label: `🌍 ${filters.country.length === 1 ? filters.country[0] : `${filters.country.length} countries`}`, color: KPI.blue },
+    filters.segment?.length     > 0 && { label: `Segment: ${arrLabel(filters.segment)}`, color: SEGMENT_COLORS[filters.segment[0]] || KPI.purple },
+    filters.productType?.length > 0 && { label: `Product: ${arrLabel(filters.productType)}`, color: KPI.purple },
+    filters.country?.length     > 0 && { label: `🌍 ${filters.country.length === 1 ? filters.country[0] : `${filters.country.length} countries`}`, color: KPI.blue },
+    filters.platform?.length    > 0 && { label: `Platform: ${arrLabel(filters.platform)}`, color: KPI.indigo },
+    filters.language?.length    > 0 && { label: `Language: ${arrLabel(filters.language)}`, color: KPI.coral },
     filters.recencyMin != null && { label: `Recency: ${filters.recencyMin}–${filters.recencyMax ?? "∞"}d`, color: KPI.pink },
     filters.spendMin   != null && { label: `Spend: $${filters.spendMin}–${filters.spendMax ?? "∞"}`,       color: KPI.teal },
     filters.nlUserIds    && { label: `NL: "${filters.nlQuestion}"`,                         color: KPI.purple },
@@ -546,10 +565,10 @@ export default function Campaigns() {
       <AudienceSelector
         segments={allSegments}
         loadingSegments={loadingSegments}
-        selectedSegment={filters.segment || null}
-        selectedProductType={filters.productType || null}
-        onSelectSegment={seg => setSegment(seg)}
-        onSelectProductType={pt => setProductType(pt)}
+        selectedSegment={filters.segment?.[0] ?? null}
+        selectedProductType={filters.productType?.[0] ?? null}
+        onSelectSegment={seg => setSegment(seg ? [seg] : [])}
+        onSelectProductType={pt => setProductType(pt ? [pt] : [])}
       />
 
       {/* ── Audience stats (shown when filters active) ────────────── */}
@@ -648,7 +667,7 @@ export default function Campaigns() {
             <div className="flex items-center gap-2 mb-1">
               <Sparkles size={15} className="text-amber-500" />
               <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">AI Recommendation</span>
-              {!filters.segment && !filters.productType && (
+              {!(filters.segment?.length > 0) && !(filters.productType?.length > 0) && (
                 <span className="ml-1 text-xs text-gray-400 font-normal">(generic audience)</span>
               )}
               <span className="ml-auto text-xs text-gray-400">Match confidence</span>

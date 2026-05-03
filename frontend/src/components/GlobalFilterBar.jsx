@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { SlidersHorizontal, X, ChevronDown } from "lucide-react";
 import { KPI } from "../constants/colors";
@@ -53,7 +53,11 @@ function useClickOutside(ref, handler) {
   }, [ref, handler]);
 }
 
-function Dropdown({ label, value, options, onSelect, onClear, activeColor = KPI.purple }) {
+/**
+ * Single-select dropdown — only used for the three range filters
+ * (Recency, Spend, Age) since their buckets are mutually exclusive.
+ */
+function RangeDropdown({ label, value, options, onSelect, onClear, activeColor = KPI.purple }) {
   const [open, setOpen] = useState(false);
   const ref = useRef();
   useClickOutside(ref, () => setOpen(false));
@@ -100,94 +104,55 @@ function Dropdown({ label, value, options, onSelect, onClear, activeColor = KPI.
 }
 
 /**
- * Generic distinct-values dropdown with counts (used by Platform & Language).
- * Pulls the list from the API once and shows it as a clickable list.
+ * Generic multi-select dropdown with checkbox list, optional search, and a
+ * selected counter. Used for every categorical filter (Segment, Product,
+ * Country, Platform, Language). Values are arrays.
+ *
+ * Two ways to pass options:
+ *  - `staticOptions`: array of plain strings (e.g. SEGMENTS, PRODUCTS).
+ *  - `fetcher`+`valueKey`: lazy fetch from the API, where each row has a
+ *    `valueKey` field and a `count` field (Country / Platform / Language).
  */
-function DistinctDropdown({ label, value, fetcher, valueKey, activeColor, onSelect, onClear }) {
-  const [open, setOpen] = useState(false);
-  const [options, setOptions] = useState([]);
-  const ref = useRef();
-  useClickOutside(ref, () => setOpen(false));
-
-  useEffect(() => {
-    fetcher().then(r => setOptions(r.data)).catch(() => {});
-  }, [fetcher]);
-
-  const active = !!value;
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(v => !v)}
-        className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border transition-all whitespace-nowrap ${
-          active
-            ? "text-white border-transparent shadow-sm"
-            : "border-gray-200 text-gray-600 bg-white hover:border-purple-300 hover:text-purple-700 shadow-sm"
-        }`}
-        style={active ? { backgroundColor: activeColor } : {}}
-      >
-        {active ? value : label}
-        {active ? (
-          <span onClick={(e) => { e.stopPropagation(); onClear(); }} className="hover:opacity-70 ml-0.5 cursor-pointer">
-            <X size={12} />
-          </span>
-        ) : (
-          <ChevronDown size={12} className="text-gray-400" />
-        )}
-      </button>
-
-      {open && (
-        <div className="absolute z-50 top-9 left-0 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[200px] py-1.5 overflow-hidden">
-          {options.map(opt => (
-            <button
-              key={opt[valueKey]}
-              onClick={() => { onSelect(opt[valueKey]); setOpen(false); }}
-              className={`w-full text-left text-sm px-4 py-2.5 hover:bg-purple-50 hover:text-purple-700 flex justify-between items-center ${
-                value === opt[valueKey] ? "bg-purple-50 text-purple-700 font-semibold" : "text-gray-700"
-              }`}
-            >
-              <span className="capitalize">{opt[valueKey]}</span>
-              <span className="text-gray-400 text-xs">{opt.count?.toLocaleString()}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-/**
- * Multi-select country picker with searchable list and selected-counter chip.
- * `value` is an array of country names (or empty array). Selecting a country
- * toggles it in the array; clearing wipes the whole list.
- */
-function CountryDropdown({ value, onChange, onClear }) {
-  const [open, setOpen]     = useState(false);
-  const [search, setSearch] = useState("");
-  const [countries, setCountries] = useState([]);
+function MultiSelectDropdown({
+  label, value, onChange, onClear,
+  activeColor = KPI.purple,
+  staticOptions, fetcher, valueKey,
+  searchable = false,
+  width = "w-56",
+  capitalize = false,
+}) {
+  const [open, setOpen]       = useState(false);
+  const [search, setSearch]   = useState("");
+  const [fetched, setFetched] = useState([]);
   const ref = useRef();
   useClickOutside(ref, () => { setOpen(false); setSearch(""); });
 
+  // Fetch once on mount if a fetcher is provided.
   useEffect(() => {
-    usersApi.countries().then(r => setCountries(r.data)).catch(() => {});
-  }, []);
+    if (fetcher) fetcher().then(r => setFetched(r.data)).catch(() => {});
+  }, [fetcher]);
+
+  // Normalize options to a uniform { value, count? } shape.
+  const options = useMemo(() => {
+    if (staticOptions) return staticOptions.map(v => ({ value: v }));
+    if (fetched && valueKey) return fetched.map(row => ({ value: row[valueKey], count: row.count }));
+    return [];
+  }, [staticOptions, fetched, valueKey]);
 
   const selected = Array.isArray(value) ? value : [];
   const selectedSet = new Set(selected);
-  const filtered = countries.filter(c => c.country?.toLowerCase().includes(search.toLowerCase()));
+  const visible = searchable
+    ? options.filter(o => String(o.value).toLowerCase().includes(search.toLowerCase()))
+    : options;
   const active = selected.length > 0;
 
-  function toggle(country) {
-    onChange(
-      selectedSet.has(country)
-        ? selected.filter(c => c !== country)
-        : [...selected, country]
-    );
+  function toggle(v) {
+    onChange(selectedSet.has(v) ? selected.filter(x => x !== v) : [...selected, v]);
   }
 
-  // Label shows first country + "+N more" if multiple, else "Country".
-  const label = !active
-    ? "Country"
+  // Chip label: "Calls" / "Calls +2" — first item plus "+N" for the rest.
+  const chipLabel = !active
+    ? label
     : selected.length === 1
       ? selected[0]
       : `${selected[0]} +${selected.length - 1}`;
@@ -201,9 +166,10 @@ function CountryDropdown({ value, onChange, onClear }) {
             ? "text-white border-transparent shadow-sm"
             : "border-gray-200 text-gray-600 bg-white hover:border-purple-300 hover:text-purple-700 shadow-sm"
         }`}
-        style={active ? { backgroundColor: KPI.blue } : {}}
+        style={active ? { backgroundColor: activeColor } : {}}
+        title={active && selected.length > 1 ? selected.join(", ") : undefined}
       >
-        {label}
+        <span className="truncate max-w-[160px]">{chipLabel}</span>
         {active ? (
           <span onClick={(e) => { e.stopPropagation(); onClear(); }} className="hover:opacity-70 ml-0.5 cursor-pointer">
             <X size={12} />
@@ -214,27 +180,29 @@ function CountryDropdown({ value, onChange, onClear }) {
       </button>
 
       {open && (
-        <div className="absolute z-50 top-9 left-0 bg-white border border-gray-200 rounded-xl shadow-xl w-64 p-2">
-          <input
-            autoFocus
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search country…"
-            className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs mb-1.5 outline-none focus:border-purple-400"
-          />
+        <div className={`absolute z-50 top-10 left-0 bg-white border border-gray-200 rounded-xl shadow-xl ${width} p-2`}>
+          {searchable && (
+            <input
+              autoFocus
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder={`Search ${label.toLowerCase()}…`}
+              className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs mb-1.5 outline-none focus:border-purple-400"
+            />
+          )}
           <div className="flex items-center justify-between text-[10px] text-gray-400 px-2 mb-1">
             <span>{selected.length} selected</span>
             {active && (
               <button onClick={onClear} className="hover:text-purple-700">Clear</button>
             )}
           </div>
-          <div className="max-h-52 overflow-y-auto space-y-0.5">
-            {filtered.map(({ country, count }) => {
-              const isSel = selectedSet.has(country);
+          <div className="max-h-60 overflow-y-auto space-y-0.5">
+            {visible.map(opt => {
+              const isSel = selectedSet.has(opt.value);
               return (
                 <button
-                  key={country}
-                  onClick={() => toggle(country)}
+                  key={String(opt.value)}
+                  onClick={() => toggle(opt.value)}
                   className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg flex justify-between items-center transition ${
                     isSel ? "bg-purple-50 text-purple-700 font-semibold" : "text-gray-700 hover:bg-purple-50"
                   }`}
@@ -247,9 +215,11 @@ function CountryDropdown({ value, onChange, onClear }) {
                     >
                       {isSel && <span className="text-white text-[10px] leading-none">✓</span>}
                     </span>
-                    <span className="truncate">{country}</span>
+                    <span className={`truncate ${capitalize ? "capitalize" : ""}`}>{opt.value}</span>
                   </span>
-                  <span className="text-gray-400 text-[10px]">{count?.toLocaleString()}</span>
+                  {opt.count != null && (
+                    <span className="text-gray-400 text-[10px]">{opt.count.toLocaleString()}</span>
+                  )}
                 </button>
               );
             })}
@@ -265,12 +235,9 @@ export default function GlobalFilterBar() {
   const {
     filters, hasActiveFilter,
     setSegment, setRecency, setCountry, setProductType, setSpend, setAge,
-    setPlatform, setLanguage, setWaReachable,
+    setPlatform, setLanguage,
     clearNL, clearLasso, clearAll,
   } = useGlobalFilter();
-
-  // WA Reachable toggle — stored in spendMin as a side-channel? No, use separate state pushed to URL or just local visual for now
-  // We'll use the context's spend filter as a proxy for now and add wa_reachable as a local concept
 
   if (location.pathname === "/settings") return null;
 
@@ -283,10 +250,18 @@ export default function GlobalFilterBar() {
       ?? `$${filters.spendMin ?? 0}–$${filters.spendMax ?? "∞"}`
     : null;
 
+  const ageLabel = filters.ageMin != null || filters.ageMax != null
+    ? AGE_OPTIONS.find(o => o.min === filters.ageMin && o.max === filters.ageMax)?.label ?? "Custom"
+    : null;
+
   const activeCount = [
-    filters.segment, filters.productType, recencyLabel,
-    filters.country?.length > 0 ? "country" : null,
-    spendLabel, filters.platform, filters.language,
+    filters.segment?.length > 0      ? "segment"   : null,
+    filters.productType?.length > 0  ? "product"   : null,
+    recencyLabel,
+    filters.country?.length > 0      ? "country"   : null,
+    spendLabel, ageLabel,
+    filters.platform?.length > 0     ? "platform"  : null,
+    filters.language?.length > 0     ? "language"  : null,
     filters.nlUserIds, filters.lassoUserIds,
   ].filter(Boolean).length;
 
@@ -294,7 +269,6 @@ export default function GlobalFilterBar() {
     <div className="w-full bg-gray-50 border-b border-gray-200 shadow-sm sticky top-0 z-40">
       <div className="w-full px-8 py-3 flex items-center justify-center gap-2.5 flex-wrap">
 
-        {/* Label */}
         <div className="flex items-center gap-1.5 text-xs font-bold text-gray-400 tracking-wide mr-1 shrink-0">
           <SlidersHorizontal size={13} />
           Filters
@@ -305,79 +279,90 @@ export default function GlobalFilterBar() {
           )}
         </div>
 
-        {/* ── Dropdowns ── */}
+        {/* Categorical multi-select filters */}
 
-        <Dropdown
+        <MultiSelectDropdown
           label="Segment"
           value={filters.segment}
-          options={SEGMENTS.map(s => ({ label: s, display: s }))}
-          onSelect={opt => setSegment(opt.label)}
-          onClear={() => setSegment(null)}
+          onChange={v => setSegment(v)}
+          onClear={() => setSegment([])}
           activeColor={KPI.purple}
+          staticOptions={SEGMENTS}
+          width="w-72"
         />
 
-        <Dropdown
+        <MultiSelectDropdown
           label="Product"
           value={filters.productType}
-          options={PRODUCTS.map(p => ({ label: p, display: p }))}
-          onSelect={opt => setProductType(opt.label)}
-          onClear={() => setProductType(null)}
-          activeColor={KPI.teal}
+          onChange={v => setProductType(v)}
+          onClear={() => setProductType([])}
+          activeColor={KPI.green}
+          staticOptions={PRODUCTS}
+          width="w-48"
         />
 
-        <Dropdown
+        <MultiSelectDropdown
+          label="Country"
+          value={filters.country}
+          onChange={v => setCountry(v)}
+          onClear={() => setCountry([])}
+          activeColor={KPI.blue}
+          fetcher={usersApi.countries}
+          valueKey="country"
+          searchable
+          width="w-64"
+        />
+
+        <MultiSelectDropdown
+          label="Platform"
+          value={filters.platform}
+          onChange={v => setPlatform(v)}
+          onClear={() => setPlatform([])}
+          activeColor={KPI.indigo}
+          fetcher={usersApi.platforms}
+          valueKey="platform"
+          width="w-48"
+        />
+
+        <MultiSelectDropdown
+          label="Language"
+          value={filters.language}
+          onChange={v => setLanguage(v)}
+          onClear={() => setLanguage([])}
+          activeColor={KPI.coral}
+          fetcher={usersApi.languages}
+          valueKey="language"
+          width="w-48"
+          capitalize
+        />
+
+        {/* Range filters — single-select since the buckets are mutually exclusive */}
+
+        <RangeDropdown
           label="Recency"
           value={recencyLabel}
           options={RECENCY_OPTIONS.map(o => ({ label: o.label, display: o.label, ...o }))}
           onSelect={opt => setRecency(opt.min, opt.max)}
           onClear={() => setRecency(null, null)}
-          activeColor={KPI.pink}
+          activeColor={KPI.rose}
         />
 
-        <CountryDropdown
-          value={filters.country}
-          onChange={v => setCountry(v)}
-          onClear={() => setCountry([])}
-        />
-
-        <Dropdown
+        <RangeDropdown
           label="Spend"
           value={spendLabel}
           options={SPEND_OPTIONS.map(o => ({ label: o.label, display: o.label, ...o }))}
           onSelect={opt => setSpend(opt.min, opt.max)}
           onClear={() => setSpend(null, null)}
-          activeColor={KPI.teal}
+          activeColor={KPI.green}
         />
 
-        <Dropdown
+        <RangeDropdown
           label="Age"
-          value={filters.ageMin != null
-            ? AGE_OPTIONS.find(o => o.min === filters.ageMin && o.max === filters.ageMax)?.label ?? "Custom"
-            : null}
+          value={ageLabel}
           options={AGE_OPTIONS.map(o => ({ label: o.label, display: o.label, ...o }))}
           onSelect={opt => setAge(opt.min, opt.max)}
           onClear={() => setAge(null, null)}
           activeColor={KPI.purple}
-        />
-
-        <DistinctDropdown
-          label="Platform"
-          value={filters.platform}
-          fetcher={usersApi.platforms}
-          valueKey="platform"
-          activeColor={KPI.green}
-          onSelect={(v) => setPlatform(v)}
-          onClear={() => setPlatform(null)}
-        />
-
-        <DistinctDropdown
-          label="Language"
-          value={filters.language}
-          fetcher={usersApi.languages}
-          valueKey="language"
-          activeColor={KPI.coral}
-          onSelect={(v) => setLanguage(v)}
-          onClear={() => setLanguage(null)}
         />
 
         {/* NL chip */}

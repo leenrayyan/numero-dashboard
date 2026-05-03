@@ -73,12 +73,15 @@ const CustomTooltip = ({ active, payload }) => {
  * Used by the "Reflect filters on cluster scatter" toggle to fade non-matching
  * points to grey while keeping matching points coloured.
  */
+// All categorical filters are arrays now — empty array = no filter applied.
+const inFilter = (arr, value) => !arr || arr.length === 0 || arr.includes(value);
+
 function matchesFilters(p, filters) {
-  if (filters.segment && p.segment !== filters.segment) return false;
-  if (filters.productType && p.primary_product_group !== filters.productType) return false;
-  if (filters.country?.length > 0 && !filters.country.includes(p.user_country)) return false;
-  if (filters.platform && p.platform !== filters.platform) return false;
-  if (filters.language && p.language !== filters.language) return false;
+  if (!inFilter(filters.segment,     p.segment))               return false;
+  if (!inFilter(filters.productType, p.primary_product_group)) return false;
+  if (!inFilter(filters.country,     p.user_country))          return false;
+  if (!inFilter(filters.platform,    p.platform))              return false;
+  if (!inFilter(filters.language,    p.language))              return false;
   if (filters.recencyMin != null && p.recency < filters.recencyMin) return false;
   if (filters.recencyMax != null && p.recency > filters.recencyMax) return false;
   if (filters.spendMin != null && p.total_spent < filters.spendMin) return false;
@@ -89,6 +92,13 @@ function matchesFilters(p, filters) {
 }
 
 export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
+  // selectedSegment may arrive as an array (preferred) or a string (back-compat).
+  // Normalise to an array so the rest of the component is uniform.
+  const selectedSegments = Array.isArray(selectedSegment)
+    ? selectedSegment
+    : (selectedSegment ? [selectedSegment] : []);
+  const anySelected = selectedSegments.length > 0;
+  const isSegmentSelected = (seg) => selectedSegments.includes(seg);
   const { clearLasso, filters, hasActiveFilter } = useGlobalFilter();
   const [points, setPoints]         = useState([]);
   const [varianceExp, setVarianceExp] = useState([]);
@@ -99,20 +109,24 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
   const [colorBy, setColorBy]       = useState("segment");
   const [reflectFilters, setReflectFilters] = useState(true); // default ON
 
-  const productType = filters.productType;
+  // Comma-joined product list mirrors how the global filter bar serialises it.
+  // The PCA endpoint accepts that and uses an IN clause for the per-product cut.
+  const productKey = filters.productType?.length > 0
+    ? [...filters.productType].sort().join(",")
+    : null;
 
   const load = useCallback(() => {
     setLoading(true);
     clearLasso();
-    // Note: we deliberately fetch the FULL sample (not filter-aware) so that
-    // when "Reflect filters" is on we have both matching and non-matching
-    // points to render — non-matches as faded background.
-    const extra = productType ? { product_group: productType } : {};
+    // Note: we deliberately fetch the FULL sample (not filter-aware on the
+    // other dims) so that when "Reflect filters" is on we have both matching
+    // and non-matching points to render — non-matches as faded background.
+    const extra = productKey ? { product_group: productKey } : {};
     clustersApi.pca(3000, extra).then(({ data }) => {
       setPoints(data.points || []);
       setVarianceExp(data.variance_explained || []);
     }).finally(() => setLoading(false));
-  }, [productType]);
+  }, [productKey]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -156,7 +170,11 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
   function handleClick(data) {
     // Click-to-filter only makes sense when we're colouring by segment.
     if (colorBy !== "segment" || !data?.segment) return;
-    onSelectSegment?.(selectedSegment === data.segment ? null : data.segment);
+    // Toggle: remove if already selected, otherwise add to the selection.
+    const next = isSegmentSelected(data.segment)
+      ? selectedSegments.filter(s => s !== data.segment)
+      : [...selectedSegments, data.segment];
+    onSelectSegment?.(next);
   }
 
   const isPCA = xAxis === "pc1" && yAxis === "pc2";
@@ -257,12 +275,18 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
       <div className="flex flex-wrap gap-1.5 mb-3">
         {groups.map(g => {
           const clickable = colorBy === "segment";
-          const active    = clickable && selectedSegment === g.key;
-          const dimmed    = clickable && selectedSegment && !active;
+          const active    = clickable && isSegmentSelected(g.key);
+          const dimmed    = clickable && anySelected && !active;
           return (
             <button
               key={g.key}
-              onClick={() => clickable && onSelectSegment(active ? null : g.key)}
+              onClick={() => {
+                if (!clickable) return;
+                const next = active
+                  ? selectedSegments.filter(s => s !== g.key)
+                  : [...selectedSegments, g.key];
+                onSelectSegment(next);
+              }}
               disabled={!clickable}
               className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-all ${
                 active ? "text-white border-transparent shadow"
@@ -279,7 +303,7 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
       </div>
 
       {/* All-products warning */}
-      {!productType && isPCA && (
+      {!productKey && isPCA && (
         <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-700">
           <strong>Note:</strong> Each product was clustered in its own PCA space — mixing all products in one scatter is approximate. Select <strong>Calls</strong>, <strong>Data eSIM</strong>, or <strong>Virtual Number</strong> above for a clean per-product view.
         </div>
@@ -330,7 +354,7 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
                 name={g.label}
                 data={g.data}
                 fill={g.color}
-                fillOpacity={!selectedSegment || colorBy !== "segment" || selectedSegment === g.key ? 0.78 : 0.12}
+                fillOpacity={!anySelected || colorBy !== "segment" || isSegmentSelected(g.key) ? 0.78 : 0.12}
                 onClick={handleClick}
                 style={{ cursor: colorBy === "segment" ? "pointer" : "default" }}
                 r={4}

@@ -168,9 +168,9 @@ export default function Reports() {
   }
   function downloadSegments() {
     const p = {};
-    if (filters.segment)     p.segment       = filters.segment;
-    if (filters.productType) p.product_group = filters.productType;
-    if (filters.country?.length > 0) p.country = filters.country.join(",");
+    if (filters.segment?.length     > 0) p.segment       = filters.segment.join(",");
+    if (filters.productType?.length > 0) p.product_group = filters.productType.join(",");
+    if (filters.country?.length     > 0) p.country       = filters.country.join(",");
     window.open(exportsApi.segmentsUrl(p), "_blank");
   }
   function downloadCampaigns() {
@@ -208,7 +208,9 @@ export default function Reports() {
             icon={FileText}
             title="Segment Summary"
             description="Aggregated per-segment metrics: user count, avg spend, avg recency, total revenue, WA-reachable count."
-            filterNote={filters.productType ? `Filtered to product: ${filters.productType}` : undefined}
+            filterNote={filters.productType?.length > 0
+              ? `Filtered to product: ${filters.productType.join(", ")}`
+              : undefined}
             onDownload={downloadSegments}
           />
           <ExportCard

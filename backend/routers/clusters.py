@@ -19,8 +19,21 @@ async def get_clusters(
     db: AsyncSession = Depends(get_db),
     product_group: Optional[str] = Query(None),
 ):
-    pg_filter = "AND primary_product_group = :pg" if product_group else ""
-    params    = {"pg": product_group} if product_group else {}
+    # Support comma-separated product_group for the multi-select filter.
+    params: dict = {}
+    pg_filter = ""
+    if product_group:
+        groups = [g.strip() for g in product_group.split(",") if g.strip()]
+        if len(groups) == 1:
+            pg_filter = "AND primary_product_group = :pg"
+            params["pg"] = groups[0]
+        elif len(groups) > 1:
+            placeholders = []
+            for i, g in enumerate(groups):
+                k = f"pg_{i}"
+                placeholders.append(f":{k}")
+                params[k] = g
+            pg_filter = f"AND primary_product_group IN ({', '.join(placeholders)})"
     result = await db.execute(text(f"""
         SELECT
             cluster_id,
@@ -134,14 +147,29 @@ async def get_pca(
     from sklearn.preprocessing import StandardScaler
     import pandas as pd
 
-    pg_filter = "AND primary_product_group = :pg" if product_group else ""
-    params    = {"n": sample_size, **({"pg": product_group} if product_group else {})}
+    # Support comma-separated product_group (multi-select on frontend).
+    params: dict = {"n": sample_size}
+    pg_filter = ""
+    if product_group:
+        groups = [g.strip() for g in product_group.split(",") if g.strip()]
+        if len(groups) == 1:
+            pg_filter = "AND primary_product_group = :pg"
+            params["pg"] = groups[0]
+        elif len(groups) > 1:
+            placeholders = []
+            for i, g in enumerate(groups):
+                k = f"pg_{i}"
+                placeholders.append(f":{k}")
+                params[k] = g
+            pg_filter = f"AND primary_product_group IN ({', '.join(placeholders)})"
 
     # Extra display/colour-by columns — included so the frontend can render rich
     # hover content and let the user re-colour the scatter by any dimension
-    # without a second round-trip.
+    # without a second round-trip. customer_age intentionally NOT here — it's
+    # already in NUMERIC_COLS (used as a feature for PCA), and listing it twice
+    # in the SELECT confuses pandas DataFrame indexing on some pandas versions.
     extra_cols = [
-        "user_country", "customer_age", "platform", "language",
+        "user_country", "platform", "language",
         "primary_product_group", "product_types",
     ]
     cols = ["id_client", "cluster_id", "segment"] + NUMERIC_COLS + extra_cols
