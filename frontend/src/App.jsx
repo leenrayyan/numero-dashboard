@@ -2,7 +2,6 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import GlobalFilterBar from "./components/GlobalFilterBar";
 import Dashboard from "./pages/Dashboard";
-import Segmentation from "./pages/Segmentation";
 import DormantUsers from "./pages/DormantUsers";
 import Reports from "./pages/Reports";
 import Campaigns from "./pages/Campaigns";
@@ -21,7 +20,8 @@ export default function App() {
             <Routes>
               <Route path="/"             element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard"    element={<Dashboard />} />
-              <Route path="/segmentation" element={<Segmentation />} />
+              {/* /segmentation now redirects to /dormant — Segments content was merged into Explore. */}
+              <Route path="/segmentation" element={<Navigate to="/dormant" replace />} />
               <Route path="/dormant"      element={<DormantUsers />} />
               <Route path="/reports"      element={<Reports />} />
               <Route path="/campaigns"    element={<Campaigns />} />

@@ -1,6 +1,6 @@
-import { useEffect, useState, useCallback } from "react";
-import { SEGMENT_COLORS as CLUSTER_COLORS } from "../constants/colors";
-import { RefreshCw, Loader2, Settings2 } from "lucide-react";
+import { useEffect, useState, useCallback, useMemo } from "react";
+import { SEGMENT_COLORS as CLUSTER_COLORS, PALETTE, PRODUCT_COLORS } from "../constants/colors";
+import { RefreshCw, Loader2, Settings2, Palette, Eye } from "lucide-react";
 import {
   ScatterChart, Scatter, XAxis, YAxis,
   CartesianGrid, Tooltip, ResponsiveContainer,
@@ -15,44 +15,98 @@ const AXIS_OPTIONS = [
   { value: "total_spent",        label: "Total Spend ($)" },
   { value: "recency",            label: "Recency (days)" },
   { value: "purchase_frequency", label: "Purchase Freq." },
+  { value: "customer_age",       label: "Customer Age (days)" },
 ];
 
-function getColor(seg) { return CLUSTER_COLORS[seg] || "#9CA3AF"; }
+const COLOR_BY_OPTIONS = [
+  { value: "segment",                label: "Segment" },
+  { value: "primary_product_group",  label: "Product" },
+  { value: "product_types",          label: "Product Type" },
+  { value: "platform",               label: "Platform" },
+  { value: "language",               label: "Language" },
+];
 
 function axisLabel(val) {
   return AXIS_OPTIONS.find(o => o.value === val)?.label ?? val;
 }
 
-const CustomTooltip = ({ active, payload, xAxis, yAxis }) => {
+function colorByLabel(val) {
+  return COLOR_BY_OPTIONS.find(o => o.value === val)?.label ?? val;
+}
+
+/**
+ * Build a value→color map for the chosen colorBy dimension.
+ * Segments and Products use the brand-defined fixed palette; everything else
+ * falls back to PALETTE indexed by sorted distinct value.
+ */
+function buildColorMap(points, colorBy) {
+  const distinct = [...new Set(points.map(p => p[colorBy]).filter(Boolean))].sort();
+  if (colorBy === "segment") {
+    return Object.fromEntries(distinct.map(v => [v, CLUSTER_COLORS[v] || "#9CA3AF"]));
+  }
+  if (colorBy === "primary_product_group") {
+    return Object.fromEntries(distinct.map(v => [v, PRODUCT_COLORS[v] || "#9CA3AF"]));
+  }
+  return Object.fromEntries(distinct.map((v, i) => [v, PALETTE[i % PALETTE.length]]));
+}
+
+const CustomTooltip = ({ active, payload }) => {
   if (!active || !payload?.length) return null;
   const d = payload[0].payload;
-  const xVal = d[xAxis];
-  const yVal = d[yAxis];
   return (
-    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-2 text-xs max-w-[180px]">
-      <div className="font-semibold text-gray-800 mb-1">{d.segment}</div>
-      <div className="text-gray-500">ID: {d.id_client}</div>
-      <div className="text-gray-500">{axisLabel(xAxis)}: {typeof xVal === "number" ? xVal.toFixed(2) : xVal}</div>
-      <div className="text-gray-500">{axisLabel(yAxis)}: {typeof yVal === "number" ? yVal.toFixed(2) : yVal}</div>
-      <div className="text-gray-400 mt-1">Spent: ${(d.total_spent ?? 0).toFixed(2)} · {d.recency}d ago</div>
+    <div className="bg-white border border-gray-200 rounded-lg shadow-md p-2.5 text-xs max-w-[220px]">
+      <div className="font-semibold text-gray-800 mb-1.5">{d.segment ?? "—"}</div>
+      <div className="space-y-0.5 text-gray-600">
+        <div><span className="text-gray-400">ID:</span> {d.id_client}</div>
+        {d.user_country && <div><span className="text-gray-400">Country:</span> {d.user_country}</div>}
+        {d.customer_age != null && <div><span className="text-gray-400">Age:</span> {d.customer_age}d</div>}
+        {d.total_spent != null && <div><span className="text-gray-400">Spend:</span> ${(d.total_spent ?? 0).toFixed(2)}</div>}
+        {d.platform && <div><span className="text-gray-400">Platform:</span> {d.platform}</div>}
+        {d.language && <div><span className="text-gray-400">Language:</span> <span className="capitalize">{d.language}</span></div>}
+      </div>
     </div>
   );
 };
 
+/**
+ * Predicate: does a sample point match the *current* global filter set?
+ * Used by the "Reflect filters on cluster scatter" toggle to fade non-matching
+ * points to grey while keeping matching points coloured.
+ */
+function matchesFilters(p, filters) {
+  if (filters.segment && p.segment !== filters.segment) return false;
+  if (filters.productType && p.primary_product_group !== filters.productType) return false;
+  if (filters.country?.length > 0 && !filters.country.includes(p.user_country)) return false;
+  if (filters.platform && p.platform !== filters.platform) return false;
+  if (filters.language && p.language !== filters.language) return false;
+  if (filters.recencyMin != null && p.recency < filters.recencyMin) return false;
+  if (filters.recencyMax != null && p.recency > filters.recencyMax) return false;
+  if (filters.spendMin != null && p.total_spent < filters.spendMin) return false;
+  if (filters.spendMax != null && p.total_spent > filters.spendMax) return false;
+  if (filters.ageMin != null && p.customer_age < filters.ageMin) return false;
+  if (filters.ageMax != null && p.customer_age > filters.ageMax) return false;
+  return true;
+}
+
 export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
-  const { clearLasso, filters } = useGlobalFilter();
+  const { clearLasso, filters, hasActiveFilter } = useGlobalFilter();
   const [points, setPoints]         = useState([]);
   const [varianceExp, setVarianceExp] = useState([]);
   const [loading, setLoading]       = useState(true);
   const [xAxis, setXAxis]           = useState("pc1");
   const [yAxis, setYAxis]           = useState("pc2");
   const [showPicker, setShowPicker] = useState(false);
+  const [colorBy, setColorBy]       = useState("segment");
+  const [reflectFilters, setReflectFilters] = useState(true); // default ON
 
   const productType = filters.productType;
 
   const load = useCallback(() => {
     setLoading(true);
     clearLasso();
+    // Note: we deliberately fetch the FULL sample (not filter-aware) so that
+    // when "Reflect filters" is on we have both matching and non-matching
+    // points to render — non-matches as faded background.
     const extra = productType ? { product_group: productType } : {};
     clustersApi.pca(3000, extra).then(({ data }) => {
       setPoints(data.points || []);
@@ -62,11 +116,9 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
 
   useEffect(() => { load(); }, [load]);
 
-  // Clip outliers: keep only points within 2nd–98th percentile on both axes
-  const clippedPoints = (() => {
+  // Outlier clip (2nd–98th percentile on both axes) for nicer scaling.
+  const clippedPoints = useMemo(() => {
     if (!points.length) return [];
-    const key = xAxis === "pc1" ? "pc1" : xAxis === "pc2" ? "pc2" : xAxis;
-    const key2 = yAxis === "pc1" ? "pc1" : yAxis === "pc2" ? "pc2" : yAxis;
     const xs = points.map(p => p[xAxis]).sort((a, b) => a - b);
     const ys = points.map(p => p[yAxis]).sort((a, b) => a - b);
     const p2  = (arr) => arr[Math.floor(arr.length * 0.02)];
@@ -74,41 +126,40 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
     const [xMin, xMax] = [p2(xs), p98(xs)];
     const [yMin, yMax] = [p2(ys), p98(ys)];
     return points.filter(p => p[xAxis] >= xMin && p[xAxis] <= xMax && p[yAxis] >= yMin && p[yAxis] <= yMax);
-  })();
+  }, [points, xAxis, yAxis]);
 
-  const segments = [...new Set(clippedPoints.map(p => p.segment))].sort();
-  const bySegment = segments.reduce((acc, seg) => {
-    acc[seg] = clippedPoints.filter(p => p.segment === seg);
-    return acc;
-  }, {});
+  // Split into colour groups based on the chosen colorBy dim, and (when
+  // reflection is on + a filter is active) a separate "faded" group for
+  // points that don't match the current filter.
+  const colorMap = useMemo(() => buildColorMap(clippedPoints, colorBy), [clippedPoints, colorBy]);
+
+  const reflectionActive = reflectFilters && hasActiveFilter;
+  const { matched, faded } = useMemo(() => {
+    if (!reflectionActive) return { matched: clippedPoints, faded: [] };
+    const m = [], f = [];
+    for (const p of clippedPoints) {
+      (matchesFilters(p, filters) ? m : f).push(p);
+    }
+    return { matched: m, faded: f };
+  }, [reflectionActive, clippedPoints, filters]);
+
+  const groups = useMemo(() => {
+    const distinct = [...new Set(matched.map(p => p[colorBy]).filter(Boolean))].sort();
+    return distinct.map(v => ({
+      key:   String(v),
+      label: String(v),
+      color: colorMap[v] || "#9CA3AF",
+      data:  matched.filter(p => p[colorBy] === v),
+    }));
+  }, [matched, colorBy, colorMap]);
 
   function handleClick(data) {
-    if (!data?.segment) return;
+    // Click-to-filter only makes sense when we're colouring by segment.
+    if (colorBy !== "segment" || !data?.segment) return;
     onSelectSegment?.(selectedSegment === data.segment ? null : data.segment);
   }
 
   const isPCA = xAxis === "pc1" && yAxis === "pc2";
-
-  const axisPickerBtn = (
-    <button
-      onClick={() => setShowPicker(v => !v)}
-      title="Change axes"
-      className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition ${
-        showPicker || !isPCA
-          ? "border-purple-300 bg-purple-50 text-purple-700"
-          : "border-gray-200 text-gray-400 hover:text-gray-600"
-      }`}
-    >
-      <Settings2 size={12} />
-      Axes
-    </button>
-  );
-
-  const refreshBtn = (
-    <button onClick={load} disabled={loading} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition">
-      {loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
-    </button>
-  );
 
   return (
     <Panel
@@ -119,11 +170,49 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
           ? `PC1 ${(varianceExp[0]*100).toFixed(1)}% · PC2 ${(varianceExp[1]*100).toFixed(1)}% variance · ${points.length.toLocaleString()} users`
           : `${axisLabel(xAxis)} vs ${axisLabel(yAxis)} · ${points.length.toLocaleString()} users`
       }
-      headerRight={<>{axisPickerBtn}{refreshBtn}</>}
+      headerRight={
+        <>
+          {/* Reflect filters toggle */}
+          <label
+            className={`flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border cursor-pointer select-none transition ${
+              reflectionActive
+                ? "border-purple-300 bg-purple-50 text-purple-700"
+                : "border-gray-200 text-gray-500 hover:text-gray-700"
+            }`}
+            title="When ON, points outside the current filter fade to grey so you can see where your filtered audience sits in the cluster space."
+          >
+            <input
+              type="checkbox"
+              checked={reflectFilters}
+              onChange={e => setReflectFilters(e.target.checked)}
+              className="w-3 h-3 accent-purple-600"
+            />
+            <Eye size={12} />
+            Reflect filters
+          </label>
+
+          <button
+            onClick={() => setShowPicker(v => !v)}
+            title="Change axes / colour"
+            className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg border transition ${
+              showPicker || !isPCA || colorBy !== "segment"
+                ? "border-purple-300 bg-purple-50 text-purple-700"
+                : "border-gray-200 text-gray-400 hover:text-gray-600"
+            }`}
+          >
+            <Settings2 size={12} />
+            Axes
+          </button>
+
+          <button onClick={load} disabled={loading} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-400 transition">
+            {loading ? <Loader2 size={15} className="animate-spin" /> : <RefreshCw size={15} />}
+          </button>
+        </>
+      }
     >
-      {/* Axis picker */}
+      {/* Axis + colour-by picker */}
       {showPicker && (
-        <div className="flex items-center gap-4 mb-3 p-3 bg-gray-50 rounded-xl text-sm">
+        <div className="flex items-center gap-4 mb-3 p-3 bg-gray-50 rounded-xl text-sm flex-wrap">
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-500 font-medium">X axis</span>
             <select
@@ -144,34 +233,46 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
               {AXIS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </div>
+          <div className="flex items-center gap-2">
+            <Palette size={12} className="text-gray-400" />
+            <span className="text-xs text-gray-500 font-medium">Colour by</span>
+            <select
+              value={colorBy}
+              onChange={e => setColorBy(e.target.value)}
+              className="border border-gray-200 rounded-lg px-2 py-1 text-xs outline-none focus:border-purple-400"
+            >
+              {COLOR_BY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
           <button
-            onClick={() => { setXAxis("pc1"); setYAxis("pc2"); }}
+            onClick={() => { setXAxis("pc1"); setYAxis("pc2"); setColorBy("segment"); }}
             className="text-xs text-gray-400 hover:text-gray-600 underline"
           >
-            Reset to PCA
+            Reset
           </button>
         </div>
       )}
 
-      {/* Segment pills */}
+      {/* Legend pills — only clickable when colouring by segment (filters that dim) */}
       <div className="flex flex-wrap gap-1.5 mb-3">
-        {Object.entries(CLUSTER_COLORS).map(([seg, color]) => {
-          if (!bySegment[seg]?.length) return null;
-          const active = selectedSegment === seg;
-          const dimmed = selectedSegment && !active;
+        {groups.map(g => {
+          const clickable = colorBy === "segment";
+          const active    = clickable && selectedSegment === g.key;
+          const dimmed    = clickable && selectedSegment && !active;
           return (
             <button
-              key={seg}
-              onClick={() => onSelectSegment(active ? null : seg)}
+              key={g.key}
+              onClick={() => clickable && onSelectSegment(active ? null : g.key)}
+              disabled={!clickable}
               className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border transition-all ${
                 active ? "text-white border-transparent shadow"
                        : dimmed ? "border-gray-200 text-gray-400 bg-gray-50"
                                 : "border-gray-200 text-gray-700 bg-white hover:shadow-sm"
-              }`}
-              style={active ? { backgroundColor: color } : {}}
+              } ${clickable ? "cursor-pointer" : "cursor-default"}`}
+              style={active ? { backgroundColor: g.color } : {}}
             >
-              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: active ? "white" : color }} />
-              {seg}
+              <span className="w-2 h-2 rounded-full" style={{ backgroundColor: active ? "white" : g.color }} />
+              {g.label}
             </button>
           );
         })}
@@ -208,16 +309,30 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
               label={{ value: axisLabel(yAxis), angle: -90, position: "insideLeft", fontSize: 11, fill: "#9ca3af" }}
               width={40}
             />
-            <Tooltip content={<CustomTooltip xAxis={xAxis} yAxis={yAxis} />} />
-            {segments.map(seg => (
+            <Tooltip content={<CustomTooltip />} />
+
+            {/* Faded background — non-matching points (only when reflection is on) */}
+            {faded.length > 0 && (
               <Scatter
-                key={seg}
-                name={seg}
-                data={bySegment[seg]}
-                fill={getColor(seg)}
-                fillOpacity={!selectedSegment || selectedSegment === seg ? 0.75 : 0.1}
+                key="__faded"
+                data={faded}
+                fill="#D1D5DB"
+                fillOpacity={0.25}
+                r={3}
+                isAnimationActive={false}
+              />
+            )}
+
+            {/* Coloured foreground — grouped by colorBy */}
+            {groups.map(g => (
+              <Scatter
+                key={g.key}
+                name={g.label}
+                data={g.data}
+                fill={g.color}
+                fillOpacity={!selectedSegment || colorBy !== "segment" || selectedSegment === g.key ? 0.78 : 0.12}
                 onClick={handleClick}
-                style={{ cursor: "pointer" }}
+                style={{ cursor: colorBy === "segment" ? "pointer" : "default" }}
                 r={4}
               />
             ))}
@@ -225,7 +340,8 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment }) {
         </ResponsiveContainer>
       )}
       <p className="text-xs text-gray-400 mt-1 text-center">
-        Click a point or pill to filter · use <strong>Axes</strong> to change what's plotted
+        Coloured by <strong>{colorByLabel(colorBy)}</strong>
+        {colorBy === "segment" && " · click a point or pill to filter by that segment"}
         {clippedPoints.length < points.length && (
           <span className="text-amber-500 ml-2">· {(points.length - clippedPoints.length).toLocaleString()} outliers hidden for scale</span>
         )}

@@ -170,7 +170,7 @@ export default function Reports() {
     const p = {};
     if (filters.segment)     p.segment       = filters.segment;
     if (filters.productType) p.product_group = filters.productType;
-    if (filters.country)     p.country       = filters.country;
+    if (filters.country?.length > 0) p.country = filters.country.join(",");
     window.open(exportsApi.segmentsUrl(p), "_blank");
   }
   function downloadCampaigns() {

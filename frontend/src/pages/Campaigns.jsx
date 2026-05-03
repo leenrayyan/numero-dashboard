@@ -453,7 +453,7 @@ export default function Campaigns() {
         message_template:   messageText,
         segment_filter:     filters.segment     || null,
         product_filter:     filters.productType || null,
-        country_filter:     filters.country     || null,
+        country_filter:     filters.country?.length > 0 ? filters.country.join(",") : null,
         recency_min_filter: filters.recencyMin  ?? null,
         recency_max_filter: filters.recencyMax  ?? null,
         spend_min_filter:   filters.spendMin    ?? null,
@@ -499,7 +499,7 @@ export default function Campaigns() {
   const filterChips = [
     filters.segment      && { label: `Segment: ${filters.segment}`,                        color: SEGMENT_COLORS[filters.segment] || KPI.purple },
     filters.productType  && { label: `Product: ${filters.productType}`,                    color: KPI.purple },
-    filters.country      && { label: `🌍 ${filters.country}`,                              color: KPI.blue },
+    filters.country?.length > 0 && { label: `🌍 ${filters.country.length === 1 ? filters.country[0] : `${filters.country.length} countries`}`, color: KPI.blue },
     filters.recencyMin != null && { label: `Recency: ${filters.recencyMin}–${filters.recencyMax ?? "∞"}d`, color: KPI.pink },
     filters.spendMin   != null && { label: `Spend: $${filters.spendMin}–${filters.spendMax ?? "∞"}`,       color: KPI.teal },
     filters.nlUserIds    && { label: `NL: "${filters.nlQuestion}"`,                         color: KPI.purple },

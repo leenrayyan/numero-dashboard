@@ -1,2 +1,2 @@
 id,run_at,n_clusters,algorithm,features_used,centroids,cluster_stats,is_active,notes
-1,2026-05-03 19:14:23.145605,9,MiniBatchKMeans (per product),"['recency', 'customer_age', 'total_spent', 'purchase_frequency', 'price', 'product_type']",[],{},True,"Seeded from DF_Merged_Clustered.csv — 3 clusters per product group, 9 segments total"
+1,2026-05-03 22:45:24.898721,9,MiniBatchKMeans (per product),"['recency', 'customer_age', 'total_spent', 'purchase_frequency', 'price', 'product_type']",[],{},True,"Seeded from DF_Merged_Clustered.csv — 3 clusters per product group, 9 segments total"

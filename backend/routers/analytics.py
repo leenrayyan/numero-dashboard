@@ -42,12 +42,14 @@ async def get_overview(
     where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language)
     row = (await db.execute(text(f"""
         SELECT
-            COUNT(*)              AS total,
-            AVG(total_spent)      AS avg_monetary,
-            SUM(total_spent)      AS total_monetary,
-            AVG(recency)          AS avg_recency,
-            AVG(purchase_frequency) AS avg_frequency,
-            AVG(total_spent / NULLIF(purchase_frequency, 0)) AS avg_aov
+            COUNT(*)                  AS total,
+            AVG(total_spent)          AS avg_monetary,
+            SUM(total_spent)          AS total_monetary,
+            AVG(recency)              AS avg_recency,
+            AVG(purchase_frequency)   AS avg_frequency,
+            AVG(total_spent / NULLIF(purchase_frequency, 0)) AS avg_aov,
+            AVG(reactivation_score)   AS avg_reactivation_score,
+            COUNT(reactivation_score) AS scored_users
         FROM users WHERE {where}
     """), params)).fetchone()
 
@@ -59,6 +61,12 @@ async def get_overview(
         "avg_recency_days":     round(row.avg_recency or 0, 0),
         "avg_frequency":        round(row.avg_frequency or 0, 1),
         "avg_aov":              round(row.avg_aov or 0, 2),
+        # `avg_reactivation_score` is None until the ML model populates the column.
+        # Frontend uses None to show a "model not ready" placeholder on the KPI card.
+        "avg_reactivation_score": (
+            round(row.avg_reactivation_score, 3) if row.avg_reactivation_score is not None else None
+        ),
+        "scored_users":         row.scored_users or 0,
     }
 
 

@@ -137,7 +137,14 @@ async def get_pca(
     pg_filter = "AND primary_product_group = :pg" if product_group else ""
     params    = {"n": sample_size, **({"pg": product_group} if product_group else {})}
 
-    cols = ["id_client", "cluster_id", "segment", "total_spent", "recency"] + NUMERIC_COLS
+    # Extra display/colour-by columns — included so the frontend can render rich
+    # hover content and let the user re-colour the scatter by any dimension
+    # without a second round-trip.
+    extra_cols = [
+        "user_country", "customer_age", "platform", "language",
+        "primary_product_group", "product_types",
+    ]
+    cols = ["id_client", "cluster_id", "segment"] + NUMERIC_COLS + extra_cols
     result = await db.execute(
         text(f"SELECT {', '.join(cols)} FROM users WHERE cluster_id IS NOT NULL {pg_filter} ORDER BY RANDOM() LIMIT :n"),
         params,
@@ -155,7 +162,13 @@ async def get_pca(
     df["pc1"] = coords[:, 0].round(4)
     df["pc2"] = coords[:, 1].round(4)
 
+    out_cols = [
+        "id_client", "cluster_id", "segment", "pc1", "pc2",
+        "total_spent", "recency", "purchase_frequency",
+        "user_country", "customer_age", "platform", "language",
+        "primary_product_group", "product_types",
+    ]
     return {
-        "points": df[["id_client", "cluster_id", "segment", "pc1", "pc2", "total_spent", "recency", "purchase_frequency"]].to_dict(orient="records"),
+        "points": df[out_cols].to_dict(orient="records"),
         "variance_explained": [round(v, 3) for v in pca.explained_variance_ratio_.tolist()],
     }

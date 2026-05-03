@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Users, DollarSign, Clock, TrendingUp, Megaphone, UserX, Layers, BarChart3, MousePointerClick } from "lucide-react";
+import { Users, DollarSign, Clock, TrendingUp, Megaphone, UserX, Layers, BarChart3, MousePointerClick, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -22,10 +22,10 @@ const RECENCY_RANGES = {
 };
 
 const QUICK_ACTIONS = [
-  { icon: UserX,     label: "Explore & Filter",  desc: "Filter users by segment, country, spend, recency — then send a campaign", to: "/dormant",      color: BRAND.purple },
-  { icon: Megaphone, label: "Campaigns",         desc: "Build and send WhatsApp reactivation campaigns to filtered audiences",    to: "/campaigns",    color: BRAND.blue },
-  { icon: BarChart3, label: "Segmentation",      desc: "Analyze cluster groups, revenue by segment, and behavioral patterns",     to: "/segmentation", color: BRAND.rose },
-  { icon: Layers,    label: "Reports & Exports", desc: "Download CSVs, track campaign delivery, read and conversion rates",       to: "/reports",      color: KPI.indigo },
+  { icon: UserX,     label: "Explore & Filter",  desc: "Filter users by segment, country, spend, recency — then send a campaign", to: "/dormant",   color: BRAND.purple },
+  { icon: BarChart3, label: "Segments",          desc: "Cluster overview, revenue by segment, drill into each cluster",            to: "/dormant",   color: BRAND.rose },
+  { icon: Megaphone, label: "Campaigns",         desc: "Build and send WhatsApp reactivation campaigns to filtered audiences",    to: "/campaigns", color: BRAND.blue },
+  { icon: Layers,    label: "Reports & Exports", desc: "Download CSVs, track campaign delivery, read and conversion rates",       to: "/reports",   color: KPI.indigo },
 ];
 
 const FUNNEL_STAGES = [
@@ -166,7 +166,7 @@ export default function Dashboard() {
     <div>
       <div className="mb-5 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold text-gray-800">Overview</h1>
+          <h1 className="text-4xl font-bold text-gray-800">Home</h1>
           <p className="text-gray-500 text-lg mt-1">Numero eSIM · Dormant user reactivation analytics</p>
         </div>
         <label
@@ -191,7 +191,7 @@ export default function Dashboard() {
       <SmartQueryBar />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-5 gap-4 mb-5">
         <KPICard title="Dormant Users"  value={loading ? "—" : fmt(overview?.dormant_users)}
           subtitle="total in dataset" icon={Users} gradient={KPI_GRADIENTS.purple} />
         <KPICard title="Total Revenue"  value={loading || !overview?.total_revenue ? "—" : `$${(overview.total_revenue/1000).toFixed(1)}k`}
@@ -200,6 +200,16 @@ export default function Dashboard() {
           subtitle="days since last purchase" icon={Clock} gradient={KPI_GRADIENTS.rose} />
         <KPICard title="Avg Spend/User" value={loading || !overview?.avg_revenue_per_user ? "—" : `$${overview.avg_revenue_per_user}`}
           subtitle="avg lifetime value" icon={TrendingUp} gradient={KPI_GRADIENTS.indigo} />
+        <KPICard title="Reactivation Score"
+          value={overview?.avg_reactivation_score != null
+            ? `${Math.round(overview.avg_reactivation_score * 100)}%`
+            : "—"}
+          subtitle={overview?.avg_reactivation_score != null
+            ? `${fmt(overview.scored_users)} users scored`
+            : "ML model not ready yet"}
+          icon={Sparkles}
+          gradient={KPI_GRADIENTS.coral}
+          pending={!loading && overview?.avg_reactivation_score == null} />
       </div>
 
       {/* Row 1: Stacked area trend + Segment donut */}

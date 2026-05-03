@@ -3,12 +3,11 @@ import { User, Megaphone } from "lucide-react";
 import { useGlobalFilter } from "../context/QueryFilterContext";
 
 const NAV_ITEMS = [
-  { to: "/dashboard",    label: "Overview" },
-  { to: "/segmentation", label: "Segments" },
-  { to: "/dormant",      label: "Explore" },
-  { to: "/campaigns",    label: "Campaigns" },
-  { to: "/reports",      label: "Reports" },
-  { to: "/settings",     label: "Settings" },
+  { to: "/dashboard", label: "Home" },
+  { to: "/dormant",   label: "Explore" },
+  { to: "/campaigns", label: "Campaigns" },
+  { to: "/reports",   label: "Reports" },
+  { to: "/settings",  label: "Settings" },
 ];
 
 export default function Navbar() {

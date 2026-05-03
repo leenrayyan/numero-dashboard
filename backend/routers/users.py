@@ -92,7 +92,7 @@ async def list_users(
     # WhatsApp campaign sender, never displayed in the dashboard UI.
     rows = await db.execute(text(f"""
         SELECT
-            id_client, segment, primary_product_group,
+            id_client, segment, primary_product_group, product_types,
             recency, purchase_frequency, total_spent, user_country,
             cluster_id, calls_spent, esim_spent, virtual_spent,
             calls_frequency, esim_frequency, virtual_frequency,

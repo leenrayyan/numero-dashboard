@@ -33,25 +33,29 @@ export const KPI_GRADIENTS = {
   coral:  "linear-gradient(160deg, #E29478 0%, #B86E50 100%)",
 };
 
-// Cohesive segment palette — cool brand spectrum (blues/purples/rose) with
-// sage green + cool coral as semantic accents. The 9 new cluster names follow
-// the `<Product> - <Tier>` convention; we colour-code by tier semantics, not
-// by product, so loyal-at-risk is always rose-ish whether it's Calls or eSIM.
+// 9-segment palette — every hue is at least one full step from its neighbour
+// in any legend so adjacent swatches read as distinct, not as gradients of the
+// same colour. Still entirely on the Numero brand spectrum (blues/purples/rose
+// + sage green + coral) plus three new but related hues (turquoise, plum,
+// burnt orange, periwinkle) for spacing.
+//
+// Top-3 most populous segments get the most distinctive colours so the donut
+// reads cleanly at a glance.
 export const SEGMENT_COLORS = {
-  // Calls
-  "Calls - High Value Loyal (At Risk)":      "#B0456E", // brand rose (high-value but slipping)
-  "Calls - Low Value Active":                "#4A90C8", // light blue (active)
-  "Calls - Frequent Low Spenders (Cooling)": "#8A5DB5", // mid purple (frequent but cooling)
+  // Top tier — maximise visual separation.
+  "Virtual - High Value Loyal (At Risk)":    "#5B3A9E", // brand deep purple
+  "eSIM - Mid Value Active":                 "#4FA88C", // sage green
+  "Calls - High Value Loyal (At Risk)":      "#B0456E", // brand rose
 
-  // eSIM
-  "eSIM - High Value Users (At Risk)":       "#C56988", // soft rose (warning)
-  "eSIM - Low Value Inactive":               "#7050B5", // light purple (inactive)
-  "eSIM - Mid Value Active":                 "#4FA88C", // sage green (healthy)
+  // Mid tier — clearly distinct hues.
+  "Virtual - Mid Value Inactive":            "#D8896B", // cool coral
+  "eSIM - High Value Users (At Risk)":       "#2A7FB8", // brand blue
+  "eSIM - Low Value Inactive":               "#3D9DB0", // turquoise
 
-  // Virtual
-  "Virtual - High Value Loyal (At Risk)":    "#5B3A9E", // brand purple (premium / at risk)
-  "Virtual - Mid Value Inactive":            "#D8896B", // cool coral (mid / cooling)
-  "Virtual - Low Value Active":              "#2A7FB8", // brand blue (active)
+  // Long-tail — related-but-shifted hues so there's no twin pair.
+  "Calls - Frequent Low Spenders (Cooling)": "#9B5DB8", // plum (lighter than brand purple)
+  "Virtual - Low Value Active":              "#C8825A", // burnt orange (warmer than coral)
+  "Calls - Low Value Active":                "#6B7CC8", // periwinkle (lighter than azure)
 };
 
 export const PRODUCT_COLORS = {
@@ -60,9 +64,19 @@ export const PRODUCT_COLORS = {
   "Virtual Number": "#B0456E",
 };
 
+// Generic categorical palette — used as the fallback colour ramp when a
+// dimension (Product Type, Platform, Language…) doesn't have a fixed mapping.
+// Order is tuned so consecutive picks are always visually distinct.
 export const PALETTE = [
-  "#5B3A9E", "#2A7FB8", "#4FA88C", "#D8896B",
-  "#B0456E", "#8A5DB5", "#4A90C8", "#C56988",
+  "#5B3A9E", // deep purple
+  "#4FA88C", // sage green
+  "#B0456E", // brand rose
+  "#2A7FB8", // azure blue
+  "#D8896B", // cool coral
+  "#3D9DB0", // turquoise
+  "#9B5DB8", // plum
+  "#C8825A", // burnt orange
+  "#6B7CC8", // periwinkle
 ];
 
 // Reactivation funnel — blue → purple → rose progression matching the logo.

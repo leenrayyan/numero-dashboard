@@ -10,18 +10,18 @@ router = APIRouter()
 # Numero-brand palette — kept in sync with frontend/src/constants/colors.js.
 # Cool blue→purple→rose spectrum derived from the logo gradient.
 SEGMENT_COLORS = {
-    # Calls
-    "Calls - High Value Loyal (At Risk)":      "#B0456E",
-    "Calls - Low Value Active":                "#4A90C8",
-    "Calls - Frequent Low Spenders (Cooling)": "#8A5DB5",
-    # eSIM
-    "eSIM - High Value Users (At Risk)":       "#C56988",
-    "eSIM - Low Value Inactive":               "#7050B5",
-    "eSIM - Mid Value Active":                 "#4FA88C",
-    # Virtual
+    # Top tier — most populous, maximise distinction.
     "Virtual - High Value Loyal (At Risk)":    "#5B3A9E",
+    "eSIM - Mid Value Active":                 "#4FA88C",
+    "Calls - High Value Loyal (At Risk)":      "#B0456E",
+    # Mid tier — distinct hues.
     "Virtual - Mid Value Inactive":            "#D8896B",
-    "Virtual - Low Value Active":              "#2A7FB8",
+    "eSIM - High Value Users (At Risk)":       "#2A7FB8",
+    "eSIM - Low Value Inactive":               "#3D9DB0",
+    # Long tail — related-but-shifted hues so no twin pair appears in any legend.
+    "Calls - Frequent Low Spenders (Cooling)": "#9B5DB8",
+    "Virtual - Low Value Active":              "#C8825A",
+    "Calls - Low Value Active":                "#6B7CC8",
 }
 
 

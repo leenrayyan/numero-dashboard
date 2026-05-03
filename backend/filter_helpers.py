@@ -36,8 +36,18 @@ def build_where(
         if ids:
             conditions.append(f"id_client = ANY(ARRAY[{','.join(str(i) for i in ids)}])")
     if country:
-        conditions.append("user_country = :country")
-        params["country"] = country
+        # Multi-select support: comma-separated country list → IN (...).
+        countries = [c.strip() for c in country.split(",") if c.strip()]
+        if len(countries) == 1:
+            conditions.append("user_country = :country")
+            params["country"] = countries[0]
+        elif len(countries) > 1:
+            placeholders = []
+            for i, c in enumerate(countries):
+                key = f"country_{i}"
+                placeholders.append(f":{key}")
+                params[key] = c
+            conditions.append(f"user_country IN ({', '.join(placeholders)})")
     if product_group:
         conditions.append("primary_product_group = :product_group")
         params["product_group"] = product_group

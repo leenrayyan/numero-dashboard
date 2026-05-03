@@ -1,23 +1,17 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
-
-const SEGMENT_COLORS = {
-  // Calls
-  "High Value Loyal":              "bg-green-100 text-green-700",
-  "Mid Value At-Risk":             "bg-yellow-100 text-yellow-700",
-  // eSIM
-  "High Value Customers":          "bg-purple-100 text-purple-700",
-  "Churned / At-Risk Users":       "bg-red-100 text-red-700",
-  "New / Low-Value Active Users":  "bg-cyan-100 text-cyan-700",
-  // Virtual
-  "High Value At-Risk":            "bg-orange-100 text-orange-700",
-  "Occasional High Spenders":      "bg-indigo-100 text-indigo-700",
-  // Shared
-  "Low Value Active":              "bg-blue-100 text-blue-700",
-};
+import { SEGMENT_COLORS as BRAND_SEGMENT_COLORS } from "../constants/colors";
 
 function SegmentBadge({ segment }) {
+  if (!segment) return <span className="text-gray-400">—</span>;
+  const color = BRAND_SEGMENT_COLORS[segment] || "#6B7280";
   return (
-    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${SEGMENT_COLORS[segment] || "bg-gray-100 text-gray-600"}`}>
+    <span
+      className="text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap"
+      style={{
+        backgroundColor: `${color}1A`, // ~10% alpha tint
+        color,
+      }}
+    >
       {segment}
     </span>
   );
@@ -27,6 +21,19 @@ function RecencyBadge({ days }) {
   if (days == null) return <span className="text-gray-400">—</span>;
   const cls = days > 365 ? "badge-low" : days > 180 ? "badge-medium" : "badge-high";
   return <span className={cls}>{days}d</span>;
+}
+
+function ReactivationBadge({ score }) {
+  if (score == null) return <span className="text-gray-300 text-xs">—</span>;
+  const pct = Math.round(score * 100);
+  const tone = pct >= 70 ? "bg-emerald-100 text-emerald-700"
+             : pct >= 40 ? "bg-amber-100 text-amber-700"
+             : "bg-rose-100 text-rose-700";
+  return (
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${tone}`}>
+      {pct}%
+    </span>
+  );
 }
 
 export default function UserTable({ users = [], loading = false, total = 0, page = 1, pageSize = 50, onPageChange }) {
@@ -44,40 +51,52 @@ export default function UserTable({ users = [], loading = false, total = 0, page
 
   return (
     <div className="card p-0 overflow-hidden">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-gray-100 bg-gray-50">
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">User ID</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Segment</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Primary Product</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Recency</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Purchases</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Total Spend</th>
-            <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Country</th>
-          </tr>
-        </thead>
-        <tbody>
-          {users.length === 0 ? (
-            <tr>
-              <td colSpan={7} className="text-center py-12 text-gray-400">No users found</td>
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-gray-100 bg-gray-50">
+              <Th>User ID</Th>
+              <Th>Segment</Th>
+              <Th>Primary Product</Th>
+              <Th>Product Types</Th>
+              <Th>Platform</Th>
+              <Th>Language</Th>
+              <Th>Recency</Th>
+              <Th>Purchases</Th>
+              <Th>Total Spend</Th>
+              <Th>Country</Th>
+              <Th>Reactivation</Th>
             </tr>
-          ) : (
-            users.map((u) => (
-              <tr key={u.id_client} className="border-b border-gray-50 hover:bg-gray-50 transition">
-                <td className="px-5 py-3 font-medium text-gray-800">{u.id_client}</td>
-                <td className="px-5 py-3"><SegmentBadge segment={u.segment} /></td>
-                <td className="px-5 py-3 text-gray-500 text-xs">{u.primary_product_group ?? "—"}</td>
-                <td className="px-5 py-3"><RecencyBadge days={u.recency} /></td>
-                <td className="px-5 py-3 text-gray-600">{u.purchase_frequency ?? "—"}</td>
-                <td className="px-5 py-3 font-medium text-gray-700">
-                  {u.total_spent != null ? `$${u.total_spent.toFixed(2)}` : "—"}
-                </td>
-                <td className="px-5 py-3 text-gray-500 text-xs">{u.user_country ?? "—"}</td>
+          </thead>
+          <tbody>
+            {users.length === 0 ? (
+              <tr>
+                <td colSpan={11} className="text-center py-12 text-gray-400">No users found</td>
               </tr>
-            ))
-          )}
-        </tbody>
-      </table>
+            ) : (
+              users.map((u) => (
+                <tr key={u.id_client} className="border-b border-gray-50 hover:bg-gray-50 transition">
+                  <td className="px-5 py-3 font-medium text-gray-800 whitespace-nowrap">{u.id_client}</td>
+                  <td className="px-5 py-3"><SegmentBadge segment={u.segment} /></td>
+                  <td className="px-5 py-3 text-gray-600 text-xs whitespace-nowrap">{u.primary_product_group ?? "—"}</td>
+                  <td className="px-5 py-3 text-gray-500 text-xs max-w-[200px] truncate" title={u.product_types ?? ""}>
+                    {u.product_types ?? "—"}
+                  </td>
+                  <td className="px-5 py-3 text-gray-600 text-xs whitespace-nowrap">{u.platform ?? "—"}</td>
+                  <td className="px-5 py-3 text-gray-600 text-xs capitalize whitespace-nowrap">{u.language ?? "—"}</td>
+                  <td className="px-5 py-3"><RecencyBadge days={u.recency} /></td>
+                  <td className="px-5 py-3 text-gray-600">{u.purchase_frequency ?? "—"}</td>
+                  <td className="px-5 py-3 font-medium text-gray-700 whitespace-nowrap">
+                    {u.total_spent != null ? `$${u.total_spent.toFixed(2)}` : "—"}
+                  </td>
+                  <td className="px-5 py-3 text-gray-500 text-xs whitespace-nowrap">{u.user_country ?? "—"}</td>
+                  <td className="px-5 py-3"><ReactivationBadge score={u.reactivation_score} /></td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {totalPages > 1 && (
         <div className="flex items-center justify-between px-5 py-3 border-t border-gray-100 text-sm text-gray-500">
@@ -94,5 +113,13 @@ export default function UserTable({ users = [], loading = false, total = 0, page
         </div>
       )}
     </div>
+  );
+}
+
+function Th({ children }) {
+  return (
+    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap">
+      {children}
+    </th>
   );
 }

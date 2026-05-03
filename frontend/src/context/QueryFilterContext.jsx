@@ -9,7 +9,7 @@ const EMPTY = {
   nlUserIds:    null,
   nlQuestion:   null,
   nlSummary:    null,
-  country:      null,
+  country:      [],            // multi-select array of country names
   productType:  null,
   spendMin:     null,
   spendMax:     null,
@@ -26,7 +26,12 @@ export function QueryFilterProvider({ children }) {
 
   const setSegment     = useCallback((seg) => setFilters(f => ({ ...f, segment: seg || null })), []);
   const setRecency     = useCallback((min, max) => setFilters(f => ({ ...f, recencyMin: min ?? null, recencyMax: max ?? null })), []);
-  const setCountry     = useCallback((c) => setFilters(f => ({ ...f, country: c || null })), []);
+  // Country is a multi-select. Accepts an array (multi-pick) OR a string
+  // (back-compat for older callers — converted to a single-element array).
+  const setCountry     = useCallback((c) => setFilters(f => ({
+    ...f,
+    country: Array.isArray(c) ? c : (c ? [c] : []),
+  })), []);
   const setProductType = useCallback((pt) => setFilters(f => ({ ...f, productType: pt || null })), []);
   const setSpend       = useCallback((min, max) => setFilters(f => ({ ...f, spendMin: min ?? null, spendMax: max ?? null })), []);
   const setAge         = useCallback((min, max) => setFilters(f => ({ ...f, ageMin: min ?? null, ageMax: max ?? null })), []);
@@ -58,7 +63,7 @@ export function QueryFilterProvider({ children }) {
     ...(filters.segment                && { segment:       filters.segment }),
     ...(filters.recencyMin  != null    && { min_recency:   filters.recencyMin }),
     ...(filters.recencyMax  != null    && { max_recency:   filters.recencyMax }),
-    ...(filters.country                && { country:       filters.country }),
+    ...(filters.country?.length > 0    && { country:       filters.country.join(",") }),
     ...(filters.productType            && { product_group: filters.productType }),
     ...(filters.spendMin    != null    && { spend_min:     filters.spendMin }),
     ...(filters.spendMax    != null    && { spend_max:     filters.spendMax }),
@@ -74,7 +79,7 @@ export function QueryFilterProvider({ children }) {
 
   const hasActiveFilter = !!(
     filters.segment || filters.recencyMin != null ||
-    filters.nlUserIds || filters.country ||
+    filters.nlUserIds || filters.country?.length > 0 ||
     filters.productType || filters.spendMin != null ||
     filters.ageMin != null || filters.platform || filters.language ||
     filters.waReachable || filters.lassoUserIds

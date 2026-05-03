@@ -39,6 +39,10 @@ class User(Base):
     primary_product_group = Column(Text, nullable=True, index=True)
     cluster_id            = Column(Integer, nullable=True, index=True)
     segment               = Column(Text, nullable=True, index=True)   # cluster_name from primary product
+    # Top product_types this user has purchased — comma-joined, ordered by frequency
+    # (e.g., "USA Offers, Landline, Germany"). Useful for richer audience targeting
+    # since one user may span multiple sub-types within a product group.
+    product_types         = Column(Text, nullable=True)
 
     # User attributes from purchase data — used as filter dimensions in the dashboard.
     # phone_number is NOT exposed in the dashboard UI; it's used only by the WhatsApp

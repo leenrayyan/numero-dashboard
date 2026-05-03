@@ -73,6 +73,15 @@ def aggregate_users(df: pd.DataFrame) -> pd.DataFrame:
     # Per-user attributes — first non-null is fine for things that should be
     # constant per user, mode for platform (which can vary across devices).
     by_user = df.groupby("id_client")
+
+    def top_product_types(s: pd.Series, limit: int = 5) -> str | None:
+        """Comma-joined top-N product_types this user purchased, ordered by count."""
+        s = s.dropna().astype(str)
+        if not len(s):
+            return None
+        vc = s.value_counts()
+        return ", ".join(vc.head(limit).index.tolist())
+
     base = pd.DataFrame({
         "user_country":       by_user["User Country"].agg(first_nonnull),
         "register_date":      by_user["register_date"].min(),
@@ -86,6 +95,7 @@ def aggregate_users(df: pd.DataFrame) -> pd.DataFrame:
         "platform":           by_user["platform"].agg(mode_or_first),
         "language":           by_user["language"].agg(first_nonnull),
         "email":              by_user["email"].agg(first_nonnull),
+        "product_types":      by_user["product_type"].agg(top_product_types),
     })
 
     # Per-product spend & frequency.
@@ -181,6 +191,7 @@ def seed(csv_path: str):
             "primary_product_group": v("primary_product_group"),
             "cluster_id":            v("cluster_id", int),
             "segment":               v("segment"),
+            "product_types":         v("product_types"),
             "phone_number":          clean_phone(v("phone_number")),
             "platform":              v("platform"),
             "language":              v("language"),
@@ -199,7 +210,7 @@ def seed(csv_path: str):
                     calls_spent, esim_spent, virtual_spent,
                     calls_frequency, esim_frequency, virtual_frequency,
                     calls_cluster, esim_cluster, virtual_cluster,
-                    primary_product_group, cluster_id, segment,
+                    primary_product_group, cluster_id, segment, product_types,
                     phone_number, platform, language, email
                 ) VALUES (
                     :id_client, :user_country, :register_date, :first_purchase, :last_purchase,
@@ -207,7 +218,7 @@ def seed(csv_path: str):
                     :calls_spent, :esim_spent, :virtual_spent,
                     :calls_frequency, :esim_frequency, :virtual_frequency,
                     :calls_cluster, :esim_cluster, :virtual_cluster,
-                    :primary_product_group, :cluster_id, :segment,
+                    :primary_product_group, :cluster_id, :segment, :product_types,
                     :phone_number, :platform, :language, :email
                 ) ON CONFLICT (id_client) DO NOTHING
             """), batch)

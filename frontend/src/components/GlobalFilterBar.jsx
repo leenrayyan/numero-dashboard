@@ -156,7 +156,12 @@ function DistinctDropdown({ label, value, fetcher, valueKey, activeColor, onSele
   );
 }
 
-function CountryDropdown({ value, onSelect, onClear }) {
+/**
+ * Multi-select country picker with searchable list and selected-counter chip.
+ * `value` is an array of country names (or empty array). Selecting a country
+ * toggles it in the array; clearing wipes the whole list.
+ */
+function CountryDropdown({ value, onChange, onClear }) {
   const [open, setOpen]     = useState(false);
   const [search, setSearch] = useState("");
   const [countries, setCountries] = useState([]);
@@ -167,8 +172,25 @@ function CountryDropdown({ value, onSelect, onClear }) {
     usersApi.countries().then(r => setCountries(r.data)).catch(() => {});
   }, []);
 
+  const selected = Array.isArray(value) ? value : [];
+  const selectedSet = new Set(selected);
   const filtered = countries.filter(c => c.country?.toLowerCase().includes(search.toLowerCase()));
-  const active = !!value;
+  const active = selected.length > 0;
+
+  function toggle(country) {
+    onChange(
+      selectedSet.has(country)
+        ? selected.filter(c => c !== country)
+        : [...selected, country]
+    );
+  }
+
+  // Label shows first country + "+N more" if multiple, else "Country".
+  const label = !active
+    ? "Country"
+    : selected.length === 1
+      ? selected[0]
+      : `${selected[0]} +${selected.length - 1}`;
 
   return (
     <div className="relative" ref={ref}>
@@ -176,21 +198,23 @@ function CountryDropdown({ value, onSelect, onClear }) {
         onClick={() => setOpen(v => !v)}
         className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold border transition-all whitespace-nowrap ${
           active
-            ? `text-white border-transparent shadow-sm`
+            ? "text-white border-transparent shadow-sm"
             : "border-gray-200 text-gray-600 bg-white hover:border-purple-300 hover:text-purple-700 shadow-sm"
         }`}
         style={active ? { backgroundColor: KPI.blue } : {}}
       >
-        {active ? value : "Country"}
+        {label}
         {active ? (
-          <span onClick={(e) => { e.stopPropagation(); onClear(); }} className="hover:opacity-70 ml-0.5 cursor-pointer"><X size={12} /></span>
+          <span onClick={(e) => { e.stopPropagation(); onClear(); }} className="hover:opacity-70 ml-0.5 cursor-pointer">
+            <X size={12} />
+          </span>
         ) : (
           <ChevronDown size={12} className="text-gray-400" />
         )}
       </button>
 
       {open && (
-        <div className="absolute z-50 top-9 left-0 bg-white border border-gray-200 rounded-xl shadow-xl w-60 p-2">
+        <div className="absolute z-50 top-9 left-0 bg-white border border-gray-200 rounded-xl shadow-xl w-64 p-2">
           <input
             autoFocus
             value={search}
@@ -198,19 +222,37 @@ function CountryDropdown({ value, onSelect, onClear }) {
             placeholder="Search country…"
             className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs mb-1.5 outline-none focus:border-purple-400"
           />
+          <div className="flex items-center justify-between text-[10px] text-gray-400 px-2 mb-1">
+            <span>{selected.length} selected</span>
+            {active && (
+              <button onClick={onClear} className="hover:text-purple-700">Clear</button>
+            )}
+          </div>
           <div className="max-h-52 overflow-y-auto space-y-0.5">
-            {filtered.map(({ country, count }) => (
-              <button
-                key={country}
-                onClick={() => { onSelect(country); setOpen(false); setSearch(""); }}
-                className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg hover:bg-purple-50 flex justify-between items-center ${
-                  value === country ? "bg-purple-50 text-purple-700 font-semibold" : "text-gray-700"
-                }`}
-              >
-                <span>{country}</span>
-                <span className="text-gray-400 text-[10px]">{count?.toLocaleString()}</span>
-              </button>
-            ))}
+            {filtered.map(({ country, count }) => {
+              const isSel = selectedSet.has(country);
+              return (
+                <button
+                  key={country}
+                  onClick={() => toggle(country)}
+                  className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg flex justify-between items-center transition ${
+                    isSel ? "bg-purple-50 text-purple-700 font-semibold" : "text-gray-700 hover:bg-purple-50"
+                  }`}
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={`w-3.5 h-3.5 rounded border flex items-center justify-center shrink-0 ${
+                        isSel ? "bg-purple-600 border-purple-600" : "border-gray-300"
+                      }`}
+                    >
+                      {isSel && <span className="text-white text-[10px] leading-none">✓</span>}
+                    </span>
+                    <span className="truncate">{country}</span>
+                  </span>
+                  <span className="text-gray-400 text-[10px]">{count?.toLocaleString()}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -243,7 +285,8 @@ export default function GlobalFilterBar() {
 
   const activeCount = [
     filters.segment, filters.productType, recencyLabel,
-    filters.country, spendLabel, filters.platform, filters.language,
+    filters.country?.length > 0 ? "country" : null,
+    spendLabel, filters.platform, filters.language,
     filters.nlUserIds, filters.lassoUserIds,
   ].filter(Boolean).length;
 
@@ -293,8 +336,8 @@ export default function GlobalFilterBar() {
 
         <CountryDropdown
           value={filters.country}
-          onSelect={v => setCountry(v)}
-          onClear={() => setCountry(null)}
+          onChange={v => setCountry(v)}
+          onClear={() => setCountry([])}
         />
 
         <Dropdown
