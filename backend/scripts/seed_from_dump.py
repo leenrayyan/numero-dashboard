@@ -1,6 +1,10 @@
 """
 Imports the CSVs that export_local.py produced into the live Postgres database.
 
+Uses Postgres `COPY FROM STDIN` for bulk loading — orders of magnitude faster
+than parameterised INSERTs, which matters on Render's free tier where the
+startup health check times out if seeding takes too long.
+
 Idempotent: skips loading if `users` already has rows, so calling this every
 boot is fine — it only does real work the first time.
 
@@ -12,7 +16,6 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import create_engine, text
-import csv
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 SEED_DIR     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed_data")
@@ -33,8 +36,8 @@ def seed():
 
     engine = create_engine(normalize_url(DATABASE_URL), echo=False)
 
-    # Ensure tables exist (init_db on app startup also does this, but predeploy
-    # hooks run before the app starts).
+    # Ensure tables exist (init_db on app startup also does this, but the seed
+    # may run before that depending on call order).
     import models
     from database import Base
     Base.metadata.create_all(engine)
@@ -42,42 +45,37 @@ def seed():
     with engine.connect() as conn:
         existing = conn.execute(text("SELECT COUNT(*) FROM users")).scalar()
         if existing and existing > 0:
-            print(f"users table already has {existing:,} rows — skipping seed.")
+            print(f"[seed] users table already has {existing:,} rows — skipping.")
             return
 
+    # COPY FROM STDIN — uses raw psycopg2 cursor for the fast path.
+    raw_conn = engine.raw_connection()
+    try:
+        cur = raw_conn.cursor()
         for table in TABLES:
             csv_path = os.path.join(SEED_DIR, f"{table}.csv")
             if not os.path.exists(csv_path):
-                print(f"  Skipping {table} (no dump at {csv_path})")
+                print(f"[seed] skipping {table}: no dump at {csv_path}")
                 continue
 
-            print(f"Loading {table} from {csv_path}")
+            print(f"[seed] loading {table} from {csv_path}")
             with open(csv_path, "r", encoding="utf-8") as f:
-                reader = csv.reader(f)
-                cols = next(reader)
-                rows = list(reader)
+                header = f.readline().strip()
+                cols   = header.split(",")
+                f.seek(0)  # rewind so COPY re-reads the header line
+                cur.copy_expert(
+                    f'COPY {table} ({",".join(cols)}) FROM STDIN WITH CSV HEADER',
+                    f,
+                )
+            count = cur.rowcount
+            print(f"[seed]   {count:,} rows loaded into {table}")
 
-            if not rows:
-                print(f"  {table}: empty dump, skipping")
-                continue
+        raw_conn.commit()
+        cur.close()
+    finally:
+        raw_conn.close()
 
-            placeholders = ", ".join(f":{c}" for c in cols)
-            stmt = text(f"INSERT INTO {table} ({', '.join(cols)}) VALUES ({placeholders}) ON CONFLICT DO NOTHING")
-
-            BATCH = 1000
-            total = 0
-            for i in range(0, len(rows), BATCH):
-                batch = [
-                    {c: (None if v == "" else v) for c, v in zip(cols, r)}
-                    for r in rows[i:i + BATCH]
-                ]
-                conn.execute(stmt, batch)
-                conn.commit()
-                total += len(batch)
-                print(f"  {total:,}/{len(rows):,}", end="\r")
-            print(f"  {total:,} rows loaded into {table}")
-
-    print("Seed complete.")
+    print("[seed] complete.")
 
 
 if __name__ == "__main__":
