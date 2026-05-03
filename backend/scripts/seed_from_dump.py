@@ -19,7 +19,11 @@ from sqlalchemy import create_engine, text
 
 DATABASE_URL = os.getenv("DATABASE_URL", "")
 SEED_DIR     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "seed_data")
-TABLES       = ["users", "cluster_runs"]
+# `cluster_runs` is intentionally not loaded — its JSON columns can't round-trip
+# through csv.writer + COPY (Postgres rejects Python repr of JSON). The table
+# exists (created by Base.metadata.create_all) but stays empty; nothing in the
+# dashboard depends on it.
+TABLES       = ["users"]
 
 
 def normalize_url(url: str) -> str:
@@ -49,9 +53,10 @@ def seed():
             return
 
     # COPY FROM STDIN — uses raw psycopg2 cursor for the fast path.
+    # We commit *per table* so a failure on one table doesn't roll back rows
+    # that already loaded successfully into another.
     raw_conn = engine.raw_connection()
     try:
-        cur = raw_conn.cursor()
         for table in TABLES:
             csv_path = os.path.join(SEED_DIR, f"{table}.csv")
             if not os.path.exists(csv_path):
@@ -59,19 +64,24 @@ def seed():
                 continue
 
             print(f"[seed] loading {table} from {csv_path}")
-            with open(csv_path, "r", encoding="utf-8") as f:
-                header = f.readline().strip()
-                cols   = header.split(",")
-                f.seek(0)  # rewind so COPY re-reads the header line
-                cur.copy_expert(
-                    f'COPY {table} ({",".join(cols)}) FROM STDIN WITH CSV HEADER',
-                    f,
-                )
-            count = cur.rowcount
-            print(f"[seed]   {count:,} rows loaded into {table}")
-
-        raw_conn.commit()
-        cur.close()
+            cur = raw_conn.cursor()
+            try:
+                with open(csv_path, "r", encoding="utf-8") as f:
+                    header = f.readline().strip()
+                    cols   = header.split(",")
+                    f.seek(0)  # rewind so COPY re-reads the header line
+                    cur.copy_expert(
+                        f'COPY {table} ({",".join(cols)}) FROM STDIN WITH CSV HEADER',
+                        f,
+                    )
+                count = cur.rowcount
+                raw_conn.commit()
+                print(f"[seed]   {count:,} rows loaded into {table}")
+            except Exception as e:
+                raw_conn.rollback()
+                print(f"[seed]   FAILED loading {table}: {type(e).__name__}: {e}")
+            finally:
+                cur.close()
     finally:
         raw_conn.close()
 

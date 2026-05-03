@@ -19,7 +19,10 @@ async def lifespan(app: FastAPI):
             from scripts.seed_from_dump import seed
             await asyncio.to_thread(seed)
         except Exception as e:
-            print(f"[seed] skipped: {e}")
+            # Print full traceback so the failure shows up clearly in Render logs.
+            import traceback
+            print(f"[seed] FAILED: {type(e).__name__}: {e}")
+            traceback.print_exc()
 
     yield
 
