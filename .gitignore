@@ -38,6 +38,11 @@ Thumbs.db
 
 # --- Claude harness ---
 .claude/launch.json
+.claude/worktrees/
+
+# --- Reactivation cache ---
+*.parquet
+!backend/reactivation/data/processed/*.parquet
 
 # --- Deploy seed dumps are explicitly tracked (override) ---
 !backend/scripts/seed_data/

@@ -8,3 +8,10 @@ google-genai>=0.8.0
 
 # Reading the original .xlsx purchase data.
 openpyxl>=3.1.0
+
+# Reactivation scoring — used by scripts/score_reactivation.py to populate
+# users.reactivation_score from the trained LightGBM models. The deployed
+# Render service doesn't run scoring, so these stay dev-only.
+lightgbm>=4.0.0
+lifetimes>=0.11.3
+pyarrow>=14.0.0
