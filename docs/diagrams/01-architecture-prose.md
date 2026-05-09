@@ -30,11 +30,19 @@ and never share code or data. This isolation is deliberate and provides
 both failure containment and the ability to choose the best-suited model
 for each task.
 
-> **Figure 2.** High-level architecture of the Dormant User Reactivation
-> System. Solid boxes are services we built; dashed boxes are external
-> third-party APIs. The shaded "Offline plane" contains workflows that
-> are run manually by the data team when fresh purchase data becomes
-> available from Numero.
+> **Figure 2a.** Online runtime architecture of the Dormant User
+> Reactivation System. Solid boxes are services we built; dashed boxes
+> are external third-party APIs. Figure 2b on the next page shows the
+> companion offline machine-learning pipeline and its closing feedback
+> arrow back to the live system.
+
+> **Figure 2b.** Offline ML pipeline. The clustering and reactivation
+> notebooks are re-run manually by the data team when Numero exports a
+> fresh purchase snapshot. Three idempotent ingest scripts (`seed.py`,
+> `ingest_reactivation_scores.py`, `train_vanna.py`) are the only
+> bridge between the offline plane and the live runtime, and the
+> dashed arrow from PostgreSQL back to "Numero purchase exports"
+> represents the human-in-the-loop step that closes the feedback loop.
 
 ### 4.1.1 Data Sources
 

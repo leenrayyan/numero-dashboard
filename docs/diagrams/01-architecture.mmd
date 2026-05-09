@@ -1,84 +1,66 @@
-%% Numero Reactivation — high-level architecture (Figure 2)
-%% Render at https://mermaid.live  — IMPORTANT: clear the default
-%% "flowchart TD" template in the editor before pasting this in.
+%% Numero Reactivation — ONLINE runtime architecture (Figure 2a)
+%% Render at https://mermaid.live  — clear the default template first.
 
-flowchart LR
+flowchart TB
 
-    %% ---------- ACTORS ----------
-    ANALYST(["Marketing Analyst<br/>(browser)"])
-    WAUSER(["WhatsApp User<br/>(dormant customer)"])
+    %% ---------- ACTORS (top) ----------
+    ANALYST(["Marketing Analyst"])
+    WAUSER(["WhatsApp User"])
 
     %% ---------- DASHBOARD CLUSTER ----------
     subgraph DASH["Dashboard"]
         direction TB
-        FE["Dashboard Frontend<br/>React + Vite :5173<br/>Recharts, regl-scatterplot"]
-        BE["Dashboard Backend<br/>FastAPI + asyncio :8000<br/>SQLAlchemy, gzip, CORS"]
-        VANNA[["Vanna NL to SQL<br/>module inside Backend"]]
+        FE["Dashboard Frontend<br/>React + Vite :5173"]
+        BE["Dashboard Backend<br/>FastAPI :8000"]
+        VANNA[["Vanna NL to SQL<br/>(module inside Backend)"]]
+        CHV[("ChromaDB<br/>Vanna corpus")]
         FE -->|HTTP / JSON| BE
-        BE -.-> VANNA
+        BE --- VANNA
+        VANNA --- CHV
     end
 
     %% ---------- WHATSAPP CLUSTER ----------
     subgraph WA["WhatsApp delivery layer"]
         direction TB
-        WAG["WhatsApp Gateway<br/>Node + Express :3000<br/>cron sender, webhook receiver"]
-        RAI["Reply AI<br/>Python + FastAPI :5000<br/>RAG, LLM reply"]
-        OFFER[["Rule-based offer selector<br/>NOT AI - deterministic table"]]
-        WAG -->|HTTP / JSON<br/>on user reply| RAI
-        RAI -.-> OFFER
+        WAG["WhatsApp Gateway<br/>Node + Express :3000"]
+        RAI["Reply AI<br/>Python + FastAPI :5000"]
+        OFFER[["Rule-based offer selector<br/>(NOT AI)"]]
+        CHR[("ChromaDB<br/>RAG corpus")]
+        WAG -->|on user reply| RAI
+        RAI --- OFFER
+        RAI --- CHR
     end
 
-    %% ---------- WAG → BACKEND ----------
-    WAG -->|HTTP poll 60s<br/>+ POST events| BE
-
     %% ---------- DATA STORES ----------
-    subgraph STORES["Data stores (Docker Compose)"]
-        direction LR
+    subgraph STORES["Shared stores (Docker Compose)"]
+        direction TB
         PG[("PostgreSQL 15 :5432<br/>users, campaigns,<br/>campaign_recipients")]
         RD[("Redis 7 :6379<br/>query cache")]
     end
 
-    CHV[("ChromaDB<br/>Vanna corpus<br/>embedded in Backend")]
-    CHR[("ChromaDB<br/>RAG corpus<br/>embedded in Reply AI")]
-
-    BE -->|SQL / asyncpg| PG
-    BE -->|RESP| RD
-    VANNA --- CHV
-    RAI --- CHR
-
     %% ---------- EXTERNAL APIs ----------
-    GEMINI{{"Google Gemini API<br/>NL to SQL"}}
-    GROQ{{"Groq API<br/>chat reply LLM"}}
-    META{{"Meta Cloud API<br/>WhatsApp Business"}}
-
-    VANNA -->|HTTPS| GEMINI
-    RAI   -->|HTTPS| GROQ
-    WAG   <-->|HTTPS / webhook| META
-
-    %% ---------- OFFLINE PLANE ----------
-    subgraph OFFLINE["Offline plane - manual, periodic"]
+    subgraph EXT["External APIs"]
         direction TB
-        NB1[/"Clustering notebook<br/>KMeans + PCA per product"/]
-        NB2[/"Reactivation notebook<br/>Random Forest scoring"/]
-        CSV1[/"Client_*_Clustered.csv"/]
-        CSV2[/"dormant_customers_scored.csv<br/>+ reactivation_model.pkl"/]
-        S1["seed.py"]
-        S2["ingest_reactivation_scores.py"]
-        S3["train_vanna.py"]
-        NB1 --> CSV1 --> S1
-        NB2 --> CSV2 --> S2
+        GEMINI{{"Google Gemini<br/>NL to SQL"}}
+        GROQ{{"Groq<br/>chat reply LLM"}}
+        META{{"Meta Cloud API<br/>WhatsApp Business"}}
     end
 
-    S1 -->|bulk INSERT| PG
-    S2 -->|UPDATE users<br/>SET reactivation_score| PG
-    S3 -->|embed + index| CHV
-
-    %% ---------- USER ENTRY POINTS ----------
+    %% ---------- USER ENTRY ----------
     ANALYST -->|HTTPS| FE
     WAUSER  -.->|WhatsApp app| META
 
-    %% ---------- FEEDBACK LOOP (honest) ----------
-    PG -.->|manual export by Numero<br/>closes loop via retraining| NB2
+    %% ---------- BACKEND TO STORES ----------
+    BE -->|SQL / asyncpg| PG
+    BE -->|RESP| RD
+
+    %% ---------- WAG → BACKEND (inner feedback loop) ----------
+    WAG -->|HTTP poll 60s for queued campaigns<br/>+ POST delivery / read / reply events| BE
+
+    %% ---------- SERVICES → EXTERNALS ----------
+    VANNA -->|HTTPS| GEMINI
+    RAI   -->|HTTPS| GROQ
+    WAG   <-->|HTTPS / webhook| META
 
     %% ---------- STYLES ----------
     classDef actor   fill:#fef3c7,stroke:#a16207,stroke-width:2px
@@ -87,9 +69,6 @@ flowchart LR
     classDef rule    fill:#f1f5f9,stroke:#64748b,stroke-width:2px
     classDef store   fill:#dcfce7,stroke:#15803d,stroke-width:2px
     classDef ext     fill:#fce7f3,stroke:#be185d,stroke-width:2px,stroke-dasharray: 6 4
-    classDef nb      fill:#fff7ed,stroke:#c2410c,stroke-width:2px
-    classDef file    fill:#fefce8,stroke:#a16207,stroke-width:1px
-    classDef script  fill:#e0f2fe,stroke:#0369a1,stroke-width:2px
 
     class ANALYST,WAUSER actor
     class FE,BE,WAG,RAI svc
@@ -97,6 +76,3 @@ flowchart LR
     class OFFER rule
     class PG,RD,CHV,CHR store
     class GEMINI,GROQ,META ext
-    class NB1,NB2 nb
-    class CSV1,CSV2 file
-    class S1,S2,S3 script
