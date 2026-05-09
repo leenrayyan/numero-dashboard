@@ -1,103 +1,102 @@
-%%{init: {'theme':'base','themeVariables':{
-  'primaryColor':'#eef2ff',
-  'primaryTextColor':'#1e293b',
-  'primaryBorderColor':'#475569',
-  'lineColor':'#475569',
-  'fontSize':'13px'
-}}}%%
+%% Numero Reactivation — high-level architecture (Figure 2)
+%% Render at https://mermaid.live  — IMPORTANT: clear the default
+%% "flowchart TD" template in the editor before pasting this in.
+
 flowchart LR
 
-%% =================== ACTORS ===================
-ANALYST(["👤 Marketing Analyst<br/>(browser)"]):::actor
-WAUSER(["👤 WhatsApp User<br/>(dormant customer)"]):::actor
+    %% ---------- ACTORS ----------
+    ANALYST(["Marketing Analyst<br/>(browser)"])
+    WAUSER(["WhatsApp User<br/>(dormant customer)"])
 
-%% =================== ONLINE PLANE ===================
-subgraph ONLINE["Online plane — request-time services"]
-  direction LR
+    %% ---------- DASHBOARD CLUSTER ----------
+    subgraph DASH["Dashboard"]
+        direction TB
+        FE["Dashboard Frontend<br/>React + Vite :5173<br/>Recharts, regl-scatterplot"]
+        BE["Dashboard Backend<br/>FastAPI + asyncio :8000<br/>SQLAlchemy, gzip, CORS"]
+        VANNA[["Vanna NL to SQL<br/>module inside Backend"]]
+        FE -->|HTTP / JSON| BE
+        BE -.-> VANNA
+    end
 
-  subgraph DASH["Dashboard"]
-    direction TB
-    FE["Dashboard Frontend<br/>React + Vite — :5173<br/><i>Recharts · regl-scatterplot</i>"]:::svc
-    BE["Dashboard Backend<br/>FastAPI + asyncio — :8000<br/><i>SQLAlchemy · gzip · CORS</i>"]:::svc
-    VANNA[["Vanna NL→SQL<br/><i>module inside Backend</i>"]]:::aimod
-    FE -- "HTTP/JSON" --> BE
-    BE -.contains.-> VANNA
-  end
+    %% ---------- WHATSAPP CLUSTER ----------
+    subgraph WA["WhatsApp delivery layer"]
+        direction TB
+        WAG["WhatsApp Gateway<br/>Node + Express :3000<br/>cron sender, webhook receiver"]
+        RAI["Reply AI<br/>Python + FastAPI :5000<br/>RAG, LLM reply"]
+        OFFER[["Rule-based offer selector<br/>NOT AI - deterministic table"]]
+        WAG -->|HTTP / JSON<br/>on user reply| RAI
+        RAI -.-> OFFER
+    end
 
-  subgraph WA["WhatsApp delivery layer"]
-    direction TB
-    WAG["WhatsApp Gateway<br/>Node + Express — :3000<br/><i>cron sender · webhook receiver</i>"]:::svc
-    RAI["Reply AI<br/>Python + FastAPI — :5000<br/><i>RAG · LLM reply</i>"]:::svc
-    OFFER[["Rule-based offer selector<br/><i>NOT AI · deterministic table</i>"]]:::rule
-    WAG -- "HTTP/JSON<br/>(on user reply)" --> RAI
-    RAI -.contains.-> OFFER
-  end
+    %% ---------- WAG → BACKEND ----------
+    WAG -->|HTTP poll 60s<br/>+ POST events| BE
 
-  WAG -- "HTTP poll (60 s)<br/>+ POST events" --> BE
-end
+    %% ---------- DATA STORES ----------
+    subgraph STORES["Data stores (Docker Compose)"]
+        direction LR
+        PG[("PostgreSQL 15 :5432<br/>users, campaigns,<br/>campaign_recipients")]
+        RD[("Redis 7 :6379<br/>query cache")]
+    end
 
-%% =================== STORES ===================
-subgraph STORES["Data stores (Docker Compose)"]
-  direction LR
-  PG[("PostgreSQL 15<br/>:5432<br/><i>users · campaigns ·<br/>campaign_recipients</i>")]:::store
-  RD[("Redis 7<br/>:6379<br/><i>query cache</i>")]:::store
-end
+    CHV[("ChromaDB<br/>Vanna corpus<br/>embedded in Backend")]
+    CHR[("ChromaDB<br/>RAG corpus<br/>embedded in Reply AI")]
 
-CHV[("ChromaDB<br/><i>Vanna corpus<br/>(embedded in Backend)</i>")]:::store
-CHR[("ChromaDB<br/><i>RAG corpus<br/>(embedded in Reply AI)</i>")]:::store
+    BE -->|SQL / asyncpg| PG
+    BE -->|RESP| RD
+    VANNA --- CHV
+    RAI --- CHR
 
-BE -- "SQL / asyncpg" --> PG
-BE -- "RESP" --> RD
-VANNA --- CHV
-RAI --- CHR
+    %% ---------- EXTERNAL APIs ----------
+    GEMINI{{"Google Gemini API<br/>NL to SQL"}}
+    GROQ{{"Groq API<br/>chat reply LLM"}}
+    META{{"Meta Cloud API<br/>WhatsApp Business"}}
 
-%% =================== EXTERNAL APIs ===================
-GEMINI{{"🌐 Google Gemini API<br/><i>NL → SQL</i>"}}:::ext
-GROQ{{"🌐 Groq API<br/><i>chat reply LLM</i>"}}:::ext
-META{{"🌐 Meta Cloud API<br/><i>WhatsApp Business</i>"}}:::ext
+    VANNA -->|HTTPS| GEMINI
+    RAI   -->|HTTPS| GROQ
+    WAG   <-->|HTTPS / webhook| META
 
-VANNA -- "HTTPS" --> GEMINI
-RAI   -- "HTTPS" --> GROQ
-WAG   -- "HTTPS / webhook" <--> META
+    %% ---------- OFFLINE PLANE ----------
+    subgraph OFFLINE["Offline plane - manual, periodic"]
+        direction TB
+        NB1[/"Clustering notebook<br/>KMeans + PCA per product"/]
+        NB2[/"Reactivation notebook<br/>Random Forest scoring"/]
+        CSV1[/"Client_*_Clustered.csv"/]
+        CSV2[/"dormant_customers_scored.csv<br/>+ reactivation_model.pkl"/]
+        S1["seed.py"]
+        S2["ingest_reactivation_scores.py"]
+        S3["train_vanna.py"]
+        NB1 --> CSV1 --> S1
+        NB2 --> CSV2 --> S2
+    end
 
-%% =================== OFFLINE PLANE ===================
-subgraph OFFLINE["Offline plane — manual, periodic (re-runs when Numero exports new purchase data)"]
-  direction TB
-  NB1[/"📓 Clustering notebook<br/><i>KMeans + PCA per product</i>"/]:::nb
-  NB2[/"📓 Reactivation notebook<br/><i>Random Forest scoring</i>"/]:::nb
-  CSV1[/"Client_*_Clustered.csv"/]:::file
-  CSV2[/"dormant_customers_scored.csv<br/>+ reactivation_model.pkl"/]:::file
-  S1["seed.py"]:::script
-  S2["ingest_reactivation_scores.py"]:::script
-  S3["train_vanna.py"]:::script
-  NB1 --> CSV1 --> S1
-  NB2 --> CSV2 --> S2
-end
+    S1 -->|bulk INSERT| PG
+    S2 -->|UPDATE users<br/>SET reactivation_score| PG
+    S3 -->|embed + index| CHV
 
-S1 -- "bulk INSERT" --> PG
-S2 -- "UPDATE users<br/>SET reactivation_score" --> PG
-S3 -- "embed + index" --> CHV
+    %% ---------- USER ENTRY POINTS ----------
+    ANALYST -->|HTTPS| FE
+    WAUSER  -.->|WhatsApp app| META
 
-%% =================== USER ENTRY POINTS ===================
-ANALYST -- "HTTPS" --> FE
-WAUSER  -. "WhatsApp app" .-> META
+    %% ---------- FEEDBACK LOOP (honest) ----------
+    PG -.->|manual export by Numero<br/>closes loop via retraining| NB2
 
-%% =================== FEEDBACK LOOP (honest) ===================
-PG  -. "manual export by Numero<br/>(closes loop via retraining)" .-> NB2
+    %% ---------- STYLES ----------
+    classDef actor   fill:#fef3c7,stroke:#a16207,stroke-width:2px
+    classDef svc     fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
+    classDef aimod   fill:#ede9fe,stroke:#6d28d9,stroke-width:2px
+    classDef rule    fill:#f1f5f9,stroke:#64748b,stroke-width:2px
+    classDef store   fill:#dcfce7,stroke:#15803d,stroke-width:2px
+    classDef ext     fill:#fce7f3,stroke:#be185d,stroke-width:2px,stroke-dasharray: 6 4
+    classDef nb      fill:#fff7ed,stroke:#c2410c,stroke-width:2px
+    classDef file    fill:#fefce8,stroke:#a16207,stroke-width:1px
+    classDef script  fill:#e0f2fe,stroke:#0369a1,stroke-width:2px
 
-%% =================== STYLES ===================
-classDef actor    fill:#fef3c7,stroke:#a16207,stroke-width:2px,color:#1e293b
-classDef svc      fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px,color:#1e293b
-classDef aimod    fill:#ede9fe,stroke:#6d28d9,stroke-width:1.5px,color:#1e293b
-classDef rule     fill:#f1f5f9,stroke:#64748b,stroke-width:1.5px,color:#334155,font-style:italic
-classDef store    fill:#dcfce7,stroke:#15803d,stroke-width:2px,color:#1e293b
-classDef ext      fill:#fce7f3,stroke:#be185d,stroke-width:2px,stroke-dasharray:6 4,color:#1e293b
-classDef nb       fill:#fff7ed,stroke:#c2410c,stroke-width:1.5px,color:#1e293b
-classDef file     fill:#fefce8,stroke:#a16207,stroke-width:1px,color:#334155,font-style:italic
-classDef script   fill:#e0f2fe,stroke:#0369a1,stroke-width:1.5px,color:#1e293b
-
-style ONLINE fill:#f8fafc,stroke:#94a3b8,stroke-dasharray:4 3
-style OFFLINE fill:#fffbeb,stroke:#d97706,stroke-dasharray:4 3
-style DASH fill:#eff6ff,stroke:#3b82f6
-style WA fill:#f5f3ff,stroke:#8b5cf6
-style STORES fill:#f0fdf4,stroke:#22c55e
+    class ANALYST,WAUSER actor
+    class FE,BE,WAG,RAI svc
+    class VANNA aimod
+    class OFFER rule
+    class PG,RD,CHV,CHR store
+    class GEMINI,GROQ,META ext
+    class NB1,NB2 nb
+    class CSV1,CSV2 file
+    class S1,S2,S3 script
