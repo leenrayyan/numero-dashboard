@@ -80,10 +80,15 @@ def get_vanna() -> VannaGemini:
     if _vanna_instance is not None:
         return _vanna_instance
 
+    # Absolute path so the backend (uvicorn, cwd = project root) and the
+    # trainer (cwd = backend/) read & write the same Chroma store. Using a
+    # relative "./chroma_db" silently created two separate stores depending
+    # on which directory the process was launched from.
+    chroma_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "chroma_db")
     vn = VannaGemini(config={
         "api_key": os.getenv("GEMINI_API_KEY"),
         "model": "gemini-2.5-flash",
-        "path": "./chroma_db",
+        "path": chroma_path,
     })
 
     vn.connect_to_postgres(

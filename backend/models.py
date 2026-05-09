@@ -35,14 +35,53 @@ class User(Base):
     esim_cluster          = Column(Text, nullable=True)
     virtual_cluster       = Column(Text, nullable=True)
 
+    # Per-product PCA coords. Each product has its own PCA fit (different
+    # feature set per group), so coords are NOT comparable across products.
+    # NULL when the user doesn't buy in that product.
+    calls_pc1             = Column(Float, nullable=True)
+    calls_pc2             = Column(Float, nullable=True)
+    esim_pc1              = Column(Float, nullable=True)
+    esim_pc2              = Column(Float, nullable=True)
+    virtual_pc1           = Column(Float, nullable=True)
+    virtual_pc2           = Column(Float, nullable=True)
+
+    # Per-product behavioural metrics — needed because membership-based
+    # filtering ("show me Calls users") only makes sense if the metrics
+    # we filter & aggregate by are also per-product. Otherwise filtering
+    # by Calls + recency<=30 silently includes users whose recent activity
+    # was in another product. NULL when the user doesn't buy that product.
+    calls_recency         = Column(Integer, nullable=True)
+    esim_recency          = Column(Integer, nullable=True)
+    virtual_recency       = Column(Integer, nullable=True)
+
+    calls_aov             = Column(Float, nullable=True)
+    esim_aov              = Column(Float, nullable=True)
+    virtual_aov           = Column(Float, nullable=True)
+
+    calls_velocity        = Column(Float, nullable=True)
+    esim_velocity         = Column(Float, nullable=True)
+    virtual_velocity      = Column(Float, nullable=True)
+
+    calls_gap_days        = Column(Float, nullable=True)
+    esim_gap_days         = Column(Float, nullable=True)
+    virtual_gap_days      = Column(Float, nullable=True)
+
     # Primary product (highest spend) and its cluster
     primary_product_group = Column(Text, nullable=True, index=True)
     cluster_id            = Column(Integer, nullable=True, index=True)
     segment               = Column(Text, nullable=True, index=True)   # cluster_name from primary product
+
+    # All product groups this user buys in (comma-joined). Preserves cross-category info
+    # for ~19% of customers who buy in 2+ categories. e.g. "Calls, Virtual Number".
+    product_groups        = Column(Text, nullable=True)
     # Top product_types this user has purchased — comma-joined, ordered by frequency
     # (e.g., "USA Offers, Landline, Germany"). Useful for richer audience targeting
     # since one user may span multiple sub-types within a product group.
     product_types         = Column(Text, nullable=True)
+    # Each user's *most-frequent* product NAME (the level between product_group
+    # and product_type). E.g. "Recharge", "Phone Number", "Data eSIM". 8 distinct
+    # values across the dataset — clean to colour by in the cluster scatter.
+    dominant_product      = Column(Text, nullable=True)
 
     # User attributes from purchase data — used as filter dimensions in the dashboard.
     # phone_number is NOT exposed in the dashboard UI; it's used only by the WhatsApp

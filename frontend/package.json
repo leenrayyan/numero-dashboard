@@ -11,13 +11,15 @@
   },
   "dependencies": {
     "axios": "^1.15.0",
+    "d3-scale": "^4.0.2",
     "lucide-react": "^1.8.0",
     "plotly.js-dist-min": "^2.35.2",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",
     "react-plotly.js": "^2.6.0",
     "react-router-dom": "^7.14.0",
-    "recharts": "^3.8.1"
+    "recharts": "^3.8.1",
+    "regl-scatterplot": "^1.15.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.4",

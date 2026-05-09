@@ -6,18 +6,21 @@ import { useGlobalFilter } from "../context/QueryFilterContext";
 import { users as usersApi } from "../api";
 
 const SEGMENTS = [
-  // Calls
-  "Calls - High Value Loyal (At Risk)",
-  "Calls - Low Value Active",
-  "Calls - Frequent Low Spenders (Cooling)",
-  // eSIM
-  "eSIM - High Value Users (At Risk)",
-  "eSIM - Mid Value Active",
-  "eSIM - Low Value Inactive",
-  // Virtual
-  "Virtual - High Value Loyal (At Risk)",
-  "Virtual - Low Value Active",
-  "Virtual - Mid Value Inactive",
+  // Calls (4)
+  "Calls - High-Value Power Users",
+  "Calls - Active Offer-Driven Customers",
+  "Calls - At-Risk Customers",
+  "Calls - One-Time Customers",
+  // eSIM (3)
+  "eSIM - High-Value Global Power Users",
+  "eSIM - Local Data Users",
+  "eSIM - Data-Only Minimal Users",
+  // Virtual (5)
+  "Virtual - High-Value Power Users",
+  "Virtual - Loyal Infrequent Buyers",
+  "Virtual - Churned Low-Value Users",
+  "Virtual - Low-Value Single-Product Users (Local Plan)",
+  "Virtual - EU Bundle Focused Customers",
 ];
 
 const PRODUCTS = ["Calls", "Data eSIM", "Virtual Number"];
@@ -167,7 +170,7 @@ function MultiSelectDropdown({
             : "border-gray-200 text-gray-600 bg-white hover:border-purple-300 hover:text-purple-700 shadow-sm"
         }`}
         style={active ? { backgroundColor: activeColor } : {}}
-        title={active && selected.length > 1 ? selected.join(", ") : undefined}
+        title={active ? selected.join(", ") : undefined}
       >
         <span className="truncate max-w-[160px]">{chipLabel}</span>
         {active ? (
@@ -215,7 +218,7 @@ function MultiSelectDropdown({
                     >
                       {isSel && <span className="text-white text-[10px] leading-none">✓</span>}
                     </span>
-                    <span className={`truncate ${capitalize ? "capitalize" : ""}`}>{opt.value}</span>
+                    <span className={`truncate ${capitalize ? "capitalize" : ""}`} title={opt.value}>{opt.value}</span>
                   </span>
                   {opt.count != null && (
                     <span className="text-gray-400 text-[10px]">{opt.count.toLocaleString()}</span>
@@ -262,7 +265,7 @@ export default function GlobalFilterBar() {
     spendLabel, ageLabel,
     filters.platform?.length > 0     ? "platform"  : null,
     filters.language?.length > 0     ? "language"  : null,
-    filters.nlUserIds, filters.lassoUserIds,
+    filters.nlAudienceId, filters.lassoUserIds,
   ].filter(Boolean).length;
 
   return (
@@ -365,9 +368,19 @@ export default function GlobalFilterBar() {
           activeColor={KPI.purple}
         />
 
-        {/* NL chip */}
-        {filters.nlUserIds && (
-          <span className="flex items-center gap-1.5 text-sm font-semibold px-3.5 py-2 rounded-lg bg-purple-600 text-white">
+        {/* NL chip — shows the smart-query question that produced the active
+            audience. Truncated for layout, but the full text appears on hover
+            (title attr). The SQL Vanna generated is also surfaced so the
+            analyst can verify exactly what was filtered. */}
+        {filters.nlAudienceId && (
+          <span
+            className="flex items-center gap-1.5 text-sm font-semibold px-3.5 py-2 rounded-lg bg-purple-600 text-white"
+            title={[
+              filters.nlQuestion ? `Question: ${filters.nlQuestion}` : null,
+              filters.nlSummary  ? `Summary: ${filters.nlSummary}`   : null,
+              filters.nlSql      ? `SQL: ${filters.nlSql}`           : null,
+            ].filter(Boolean).join("\n\n")}
+          >
             "{filters.nlQuestion?.slice(0, 28)}{filters.nlQuestion?.length > 28 ? "…" : ""}"
             <button onClick={clearNL} className="hover:opacity-70"><X size={12} /></button>
           </span>

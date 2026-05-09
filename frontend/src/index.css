@@ -8,6 +8,12 @@
      so it matches what you'd see at 90% browser zoom on a 1080p monitor. */
   html { font-size: 14.4px; }
   body { @apply bg-gray-100 text-gray-800; font-family: 'Plus Jakarta Sans', sans-serif; margin: 0; }
+  /* Scroll anchoring (browser-built-in): when content above the viewport
+     changes height (filter switch repaints KPIs / table / etc.), the browser
+     keeps the visible content in place by adjusting scroll position
+     invisibly. Default is `auto` but we set it explicitly so a stray
+     `overflow-anchor: none` later can't silently break it. */
+  html, body { overflow-anchor: auto; }
 }
 
 @layer components {

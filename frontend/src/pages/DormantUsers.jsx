@@ -1,30 +1,21 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import {
-  Users, DollarSign, Clock, TrendingUp, Sparkles,
-  Search, Megaphone, BarChart2,
-} from "lucide-react";
+import { Search, Megaphone, BarChart2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { analytics as analyticsApi, users as usersApi, segmentation as segApi } from "../api";
-import KPICard from "../components/KPICard";
 import UserTable from "../components/UserTable";
 import ClusterScatter from "../components/ClusterScatter";
+import AudienceBreakdown from "../components/AudienceBreakdown";
+import SegmentStackedBar from "../components/SegmentStackedBar";
 import SmartQueryBar from "../components/SmartQueryBar";
 import { useGlobalFilter } from "../context/QueryFilterContext";
-import { SEGMENT_COLORS, KPI_GRADIENTS } from "../constants/colors";
-
-const PRODUCT_TABS = [
-  { label: "All Products",   value: null },
-  { label: "Calls",          value: "Calls" },
-  { label: "Data eSIM",      value: "Data eSIM" },
-  { label: "Virtual Number", value: "Virtual Number" },
-];
+import { SEGMENT_COLORS } from "../constants/colors";
 
 export default function DormantUsers() {
   const navigate = useNavigate();
   const {
     filters, apiParams, userApiParams, hasActiveFilter,
     setSegment: setGlobalSegment,
-    setProductType: setGlobalProductType,
+    setLasso,
   } = useGlobalFilter();
 
   const [overview,     setOverview]     = useState(null);
@@ -33,11 +24,74 @@ export default function DormantUsers() {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [page,         setPage]         = useState(1);
   const [search,       setSearch]       = useState("");
+  // Live percentile cutoffs (HIGH / MEDIUM thresholds) for the reactivation
+  // badge colours. Fetched once at mount; rarely changes (only on a fresh
+  // ingest of new scores), so no need to refetch on every filter change.
+  const [reactivationCutoffs, setReactivationCutoffs] = useState(null);
+
+  // Row-level selection — local to this page (does NOT filter the page).
+  // Used as the campaign target if any rows are checked at "Create Campaign" time.
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+
+  const toggleOne = useCallback((id) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+  // Header checkbox → fetch every id_client matching the current filter and
+  // populate selectedIds. The endpoint is capped at 300k server-side.
+  const [selectAllLoading, setSelectAllLoading] = useState(false);
+  const selectAllMatching = useCallback(() => {
+    setSelectAllLoading(true);
+    usersApi.ids({ ...userApiParams, ...(search && { search }) })
+      .then(({ data }) => setSelectedIds(new Set(data.ids || [])))
+      .finally(() => setSelectAllLoading(false));
+  }, [JSON.stringify(userApiParams), search]); // eslint-disable-line
 
   useEffect(() => {
     analyticsApi.overview(apiParams).then(({ data }) => setOverview(data));
     segApi.overview(apiParams).then(({ data }) => setSegments(data.segments || []));
   }, [JSON.stringify(apiParams)]);
+
+  // Reactivation badge colour cutoffs — fetched once at mount. Doesn't depend
+  // on the active filter; the cutoffs reflect the global score distribution.
+  useEffect(() => {
+    analyticsApi.reactivationCutoffs()
+      .then(({ data }) => setReactivationCutoffs(data))
+      .catch(() => { /* leave null → ReactivationBadge falls back to defaults */ });
+  }, []);
+
+  // Roll up the segmentation API rows into one card per segment name.
+  const segmentTotals = useMemo(() => {
+    const total = segments.reduce((s, r) => s + (r.user_count || 0), 0);
+    const byName = new Map();
+    for (const r of segments) {
+      const cur = byName.get(r.segment) || {
+        segment: r.segment, user_count: 0, total_monetary: 0, recencySum: 0, freqSum: 0,
+        product_group: r.product_group,
+      };
+      cur.user_count     += r.user_count || 0;
+      cur.total_monetary += r.total_monetary || 0;
+      cur.recencySum     += (r.avg_recency || 0) * (r.user_count || 0);
+      cur.freqSum        += (r.avg_frequency || 0) * (r.user_count || 0);
+      byName.set(r.segment, cur);
+    }
+    return Array.from(byName.values()).map(r => ({
+      segment:       r.segment,
+      product_group: r.product_group,
+      user_count:    r.user_count,
+      percentage:    total ? +(r.user_count / total * 100).toFixed(2) : 0,
+      avg_revenue:   r.user_count ? +(r.total_monetary / r.user_count).toFixed(2) : 0,
+      avg_recency:   r.user_count ? Math.round(r.recencySum / r.user_count) : 0,
+      avg_frequency: r.user_count ? +(r.freqSum / r.user_count).toFixed(1) : 0,
+      color:         SEGMENT_COLORS[r.segment] || "#6B7280",
+    })).sort((a, b) => b.user_count - a.user_count);
+  }, [segments]);
 
   const fetchUsers = useCallback(() => {
     setLoadingUsers(true);
@@ -52,35 +106,6 @@ export default function DormantUsers() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  // Roll up the segmentation API rows (which are split by cluster_id × product_group)
-  // into one card per segment name, summing counts and weighting averages by user_count.
-  const segmentTotals = useMemo(() => {
-    const totalUsers = segments.reduce((s, r) => s + (r.user_count || 0), 0);
-    const byName = new Map();
-    for (const r of segments) {
-      const cur = byName.get(r.segment) || {
-        segment: r.segment, user_count: 0, total_monetary: 0, recencySum: 0, freqSum: 0,
-        product_group: r.product_group,
-      };
-      cur.user_count     += r.user_count || 0;
-      cur.total_monetary += r.total_monetary || 0;
-      cur.recencySum     += (r.avg_recency || 0) * (r.user_count || 0);
-      cur.freqSum        += (r.avg_frequency || 0) * (r.user_count || 0);
-      byName.set(r.segment, cur);
-    }
-    return Array.from(byName.values()).map(r => ({
-      segment:        r.segment,
-      product_group:  r.product_group,
-      user_count:     r.user_count,
-      percentage:     totalUsers ? +(r.user_count / totalUsers * 100).toFixed(1) : 0,
-      total_monetary: Math.round(r.total_monetary),
-      avg_revenue:    r.user_count ? +(r.total_monetary / r.user_count).toFixed(2) : 0,
-      avg_recency:    r.user_count ? Math.round(r.recencySum / r.user_count) : 0,
-      avg_frequency:  r.user_count ? +(r.freqSum / r.user_count).toFixed(1) : 0,
-      color:          SEGMENT_COLORS[r.segment] || "#6B7280",
-    })).sort((a, b) => b.user_count - a.user_count);
-  }, [segments]);
-
   return (
     <div>
       <div className="mb-5">
@@ -92,58 +117,15 @@ export default function DormantUsers() {
 
       <SmartQueryBar />
 
-      {/* Product type tabs — these are a quick shortcut for the multi-select Product
-          filter in the global bar. Clicking a tab REPLACES whatever's selected;
-          "All Products" clears the filter entirely. */}
-      <div className="flex gap-1 mb-5 bg-white rounded-xl p-1 border border-gray-200 w-fit">
-        {PRODUCT_TABS.map(({ label, value }) => {
-          // Tab is "active" when its single value exactly equals the current selection
-          // (or both are empty for "All Products").
-          const selected = filters.productType ?? [];
-          const isAll = value == null;
-          const active = isAll
-            ? selected.length === 0
-            : selected.length === 1 && selected[0] === value;
-          return (
-            <button
-              key={label}
-              onClick={() => { setGlobalProductType(value ? [value] : []); setPage(1); }}
-              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
-                active
-                  ? "bg-purple-600 text-white shadow"
-                  : "text-gray-500 hover:text-gray-800 hover:bg-gray-50"
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
-      </div>
+      {/* Product-type quick-tabs moved into the Cluster Map panel header
+          (see ClusterScatter.jsx) — that's the only place the All/Single
+          distinction meaningfully changes the view (small multiples vs one
+          panel). The page-wide product filter still lives in the global
+          filter bar above. */}
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-5 gap-4 mb-5">
-        <KPICard title="Total Users"   value={overview?.dormant_users?.toLocaleString() ?? "—"}
-          subtitle="matching filters" icon={Users}     gradient={KPI_GRADIENTS.purple} />
-        <KPICard title="Total Revenue" value={overview?.total_revenue ? `$${(overview.total_revenue/1000).toFixed(1)}k` : "—"}
-          subtitle="lifetime spend" icon={DollarSign} gradient={KPI_GRADIENTS.green} />
-        <KPICard title="Avg Recency"   value={overview?.avg_recency_days ? `${overview.avg_recency_days}d` : "—"}
-          subtitle="days inactive" icon={Clock} gradient={KPI_GRADIENTS.rose} />
-        <KPICard title="Avg Spend"     value={overview?.avg_revenue_per_user ? `$${overview.avg_revenue_per_user}` : "—"}
-          subtitle="per user" icon={TrendingUp} gradient={KPI_GRADIENTS.indigo} />
-        <KPICard title="Reactivation Score"
-          value={overview?.avg_reactivation_score != null
-            ? `${Math.round(overview.avg_reactivation_score * 100)}%`
-            : "—"}
-          subtitle={overview?.avg_reactivation_score != null
-            ? `${overview.scored_users?.toLocaleString() ?? 0} scored`
-            : "ML model not ready yet"}
-          icon={Sparkles}
-          gradient={KPI_GRADIENTS.coral}
-          pending={overview != null && overview.avg_reactivation_score == null} />
-      </div>
-
-      {/* Segment overview cards — lifted from the deleted Segments page.
-          Click a card → applies the segment filter. */}
+      {/* Segment cards — colour-tinted backgrounds so the grid reads visually,
+          not as small text on white. Click a card to filter the page by that
+          segment. */}
       <div className="card mb-5">
         <div className="flex items-baseline justify-between mb-1">
           <h2 className="font-semibold text-gray-700 text-lg">Segments</h2>
@@ -153,23 +135,24 @@ export default function DormantUsers() {
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {segmentTotals.map(s => {
             const active = filters.segment?.includes(s.segment);
+            const pctLabel = s.percentage < 0.1 ? `${s.percentage.toFixed(2)}%` : `${s.percentage.toFixed(1)}%`;
             return (
               <button
                 key={s.segment}
                 onClick={() => {
-                  // Toggle this segment in the multi-select segment filter.
                   const next = active
                     ? filters.segment.filter(x => x !== s.segment)
                     : [...(filters.segment || []), s.segment];
                   setGlobalSegment(next);
                   setPage(1);
                 }}
-                className={`text-left rounded-xl border transition-shadow hover:shadow-md p-3 ${
-                  active ? "ring-2" : "border-gray-100"
+                className={`text-left rounded-xl transition-all hover:shadow-md p-3 border ${
+                  active ? "ring-2" : "border-transparent"
                 }`}
                 style={{
+                  background: `linear-gradient(135deg, ${s.color}14 0%, ${s.color}28 100%)`,
                   borderLeft: `4px solid ${s.color}`,
-                  ...(active ? { boxShadow: `0 0 0 2px ${s.color}55` } : {}),
+                  ...(active ? { boxShadow: `0 0 0 2px ${s.color}` } : {}),
                 }}
               >
                 <div className="flex items-start justify-between mb-2 gap-2">
@@ -179,7 +162,12 @@ export default function DormantUsers() {
                       {s.segment}
                     </span>
                   </div>
-                  <span className="text-sm font-bold shrink-0" style={{ color: s.color }}>{s.percentage}%</span>
+                  <span
+                    className="text-sm font-bold shrink-0 px-1.5 py-0.5 rounded text-white"
+                    style={{ backgroundColor: s.color }}
+                  >
+                    {pctLabel}
+                  </span>
                 </div>
                 <div className="grid grid-cols-4 gap-1.5">
                   <Stat label="Users"      value={s.user_count.toLocaleString()} />
@@ -193,14 +181,19 @@ export default function DormantUsers() {
         </div>
       </div>
 
-      {/* Cluster scatter — full width now that the right-column panels are
-          retired (they duplicated info that's already in the global filter bar
-          and the Segments cards above). */}
-      <div className="mb-5">
+      {/* Cluster scatter (left, clean canvas) + segment selector & audience
+          breakdown (right). The right column is the "explore your audience"
+          workspace: pick segments via the stacked bar, then see where they
+          live / how they connect / how dormant / how much they spend. */}
+      <div className="grid grid-cols-2 gap-4 mb-5 items-stretch">
         <ClusterScatter
           selectedSegment={filters.segment}
           onSelectSegment={(seg) => { setGlobalSegment(seg); setPage(1); }}
         />
+        <div className="flex flex-col gap-4 h-full">
+          <SegmentStackedBar />
+          <AudienceBreakdown className="flex-1" />
+        </div>
       </div>
 
       {/* User-ID search — the only filter that's local to this page.
@@ -218,16 +211,36 @@ export default function DormantUsers() {
         )}
       </div>
 
-      {/* Campaign + Reports CTA */}
-      <div className="flex items-center gap-3 mb-4 p-4 bg-white rounded-xl border border-gray-100 shadow-sm">
+      {/* Campaign + Reports CTA. If the user checked individual rows, those
+          take precedence over the filter as the campaign target. */}
+      <div
+        className={`flex items-center gap-3 mb-4 p-4 rounded-xl border shadow-sm transition-colors ${
+          selectedIds.size > 0
+            ? "bg-purple-50 border-purple-200"
+            : "bg-white border-gray-100"
+        }`}
+      >
         <div className="flex-1 min-w-0">
-          {hasActiveFilter ? (
+          {selectedIds.size > 0 ? (
+            <p className="text-sm font-semibold text-purple-900">
+              {selectedIds.size.toLocaleString()} user{selectedIds.size === 1 ? "" : "s"} selected
+              <button
+                onClick={clearSelection}
+                className="ml-3 text-xs text-purple-600 hover:text-purple-800 underline font-normal"
+              >
+                clear selection
+              </button>
+              <span className="text-purple-700 font-normal ml-2">
+                — campaign will target only these users
+              </span>
+            </p>
+          ) : hasActiveFilter ? (
             <p className="text-sm font-semibold text-gray-800">
               {userList.total.toLocaleString()} users match your filters
-              <span className="text-gray-400 font-normal ml-2">— ready to target</span>
+              <span className="text-gray-400 font-normal ml-2">— ready to target, or check rows below to pick specific users</span>
             </p>
           ) : (
-            <p className="text-sm text-gray-500">Apply filters at the top to target a specific audience, then send a campaign.</p>
+            <p className="text-sm text-gray-500">Apply filters at the top, or check rows in the table to target specific users.</p>
           )}
         </div>
         <button
@@ -238,18 +251,27 @@ export default function DormantUsers() {
           Reports
         </button>
         <button
-          onClick={() => navigate("/campaigns")}
+          onClick={() => {
+            // If rows are checked, override filter with the picked IDs by stuffing
+            // them into the existing user_ids filter slot, then navigate.
+            if (selectedIds.size > 0) {
+              setLasso(Array.from(selectedIds));
+            }
+            navigate("/campaigns");
+          }}
           className={`flex items-center gap-2 text-sm font-semibold px-5 py-2 rounded-xl transition shadow-sm ${
-            hasActiveFilter
+            selectedIds.size > 0 || hasActiveFilter
               ? "bg-purple-600 text-white hover:bg-purple-700"
               : "bg-gray-100 text-gray-400 cursor-not-allowed"
           }`}
-          disabled={!hasActiveFilter}
+          disabled={selectedIds.size === 0 && !hasActiveFilter}
         >
           <Megaphone size={15} />
-          {hasActiveFilter
-            ? `Create Campaign · ${userList.total.toLocaleString()} users`
-            : "Create Campaign"}
+          {selectedIds.size > 0
+            ? `Create Campaign · ${selectedIds.size.toLocaleString()} selected`
+            : hasActiveFilter
+              ? `Create Campaign · ${userList.total.toLocaleString()} users`
+              : "Create Campaign"}
         </button>
       </div>
 
@@ -260,6 +282,16 @@ export default function DormantUsers() {
         page={page}
         pageSize={50}
         onPageChange={setPage}
+        // When exactly one product is filtered, the table's recency / spend /
+        // purchases columns are that product's per-user values — pass the
+        // label so the headers reflect that.
+        singleProductLabel={filters.productType?.length === 1 ? filters.productType[0] : null}
+        reactivationCutoffs={reactivationCutoffs}
+        selectedIds={selectedIds}
+        onToggle={toggleOne}
+        onSelectAllMatching={selectAllMatching}
+        onClearAll={clearSelection}
+        selectAllLoading={selectAllLoading}
       />
     </div>
   );
@@ -267,9 +299,10 @@ export default function DormantUsers() {
 
 function Stat({ label, value }) {
   return (
-    <div className="text-center">
-      <div className="text-[10px] text-gray-400 uppercase tracking-wide">{label}</div>
+    <div>
+      <div className="text-[10px] text-gray-500 uppercase tracking-wide">{label}</div>
       <div className="text-xs font-bold text-gray-800 truncate" title={value}>{value}</div>
     </div>
   );
 }
+

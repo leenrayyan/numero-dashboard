@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Megaphone, Users, Sparkles, Send, CheckCircle, ChevronDown,
+  Megaphone, Users, Lightbulb, Send, CheckCircle, ChevronDown,
   ChevronUp, Filter, Clock, DollarSign, Target, BarChart2,
   RefreshCw, Eye, FileText, Zap, AlertCircle, X, Copy, Check,
+  Smartphone, Edit3,
 } from "lucide-react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from "recharts";
 import { useGlobalFilter } from "../context/QueryFilterContext";
 import { analytics, campaigns as campaignsApi, segmentation } from "../api";
-import { SEGMENT_COLORS, KPI } from "../constants/colors";
+import { SEGMENT_COLORS, KPI, BRAND, PALETTE } from "../constants/colors";
+import ClusterScatter from "../components/ClusterScatter";
 
 /** All 22 real promo codes from the Excel */
 const OFFERS = [
@@ -41,54 +44,64 @@ const OFFERS = [
   { code: "LOCAL20",    label: "Local Plan",           discount: "$20 off",    product: "Local",          description: "$20 off local calling plans", tier: 4 },
 ];
 
-/** Returns { code, altCode, reason, confidence } */
+/** Rule-based offer matcher. Returns { code, altCode, reason, matchLabel, signalCount }. */
 function matchOffer(segment, productGroup, recencyMin) {
   const TIER_MAP = {
-    "High Value Loyal":             1,
-    "High Value Customers":         1,
-    "New / Low-Value Active Users": 1,
-    "Low Value Active":             2,
-    "Mid Value At-Risk":            2,
-    "Occasional High Spenders":     3,
-    "High Value At-Risk":           3,
-    "Churned / At-Risk Users":      4,
+    // Tier 1 — top-of-tier loyalists, light incentive needed
+    "Calls - High-Value Power Users":                          1,
+    "eSIM - High-Value Global Power Users":                    1,
+    "Virtual - High-Value Power Users":                        1,
+    "Virtual - Loyal Infrequent Buyers":                       1,
+    // Tier 2 — mid-value, moderate incentive
+    "Calls - Active Offer-Driven Customers":                   2,
+    "eSIM - Local Data Users":                                 2,
+    "Virtual - Low-Value Single-Product Users (Local Plan)":   2,
+    "Virtual - EU Bundle Focused Customers":                   2,
+    // Tier 3 — at-risk, stronger incentive
+    "Calls - At-Risk Customers":                               3,
+    "eSIM - Data-Only Minimal Users":                          3,
+    // Tier 4 — churned / one-time, heaviest reactivation push
+    "Virtual - Churned Low-Value Users":                       4,
+    "Calls - One-Time Customers":                              4,
   };
-  let tier = TIER_MAP[segment] ?? 2;
+  const baseTier = TIER_MAP[segment] ?? 2;
+  let tier = baseTier;
 
   // Very dormant → one tier more aggressive
-  if (recencyMin != null && recencyMin >= 365 && tier < 4) tier++;
+  const recencyBumped = recencyMin != null && recencyMin >= 365 && tier < 4;
+  if (recencyBumped) tier++;
 
-  // Confidence: how many signals we have
-  const signals = [segment, productGroup, recencyMin != null ? 1 : null].filter(Boolean).length;
-  const confidence = Math.round((signals / 3) * 100);
+  // Match strength: how many of the 3 inputs (segment, product, recency) are set
+  const signalCount = [segment, productGroup, recencyMin != null ? 1 : null].filter(Boolean).length;
+  const matchLabel = signalCount >= 3 ? "Strong match" : signalCount === 2 ? "Partial match" : signalCount === 1 ? "Loose match" : "Generic";
+
+  // Build a transparent, rule-based reason — no AI prose.
+  const reasonParts = [];
+  if (segment) reasonParts.push(`segment "${segment}" → tier ${baseTier}`);
+  else reasonParts.push("no segment selected → default tier 2");
+  if (recencyBumped) reasonParts.push(`recency ≥ 365d bumps tier to ${tier}`);
+  reasonParts.push(`product = ${productGroup || "mixed"}`);
+  const reason = `Rule: ${reasonParts.join("; ")}.`;
 
   const product = productGroup || "All";
 
   if (product === "Calls") {
     const code    = ["CALL5",  "CALL10",  "CALL15",  "CALL20"][tier - 1];
     const altCode = ["TALK5",  "TALK10",  "TALK15",  "TALK20"][tier - 1];
-    return {
-      code, altCode, confidence,
-      reason: tier <= 2
-        ? "Calling credit bonuses drive re-engagement better than discounts — immediate tangible value users can see on their balance."
-        : "Heavy credit bonus chosen: this segment has high churn risk. A large credit feels like a gift, lowering price-resistance.",
-    };
+    return { code, altCode, reason, matchLabel, signalCount };
   }
   if (product === "Data eSIM") {
-    if (tier === 1) return { code: "TRAVEL5",  confidence, reason: "Light travel discount for recently active eSIM users — keeps them engaged without over-investing." };
-    if (tier === 2) return { code: "ONLINE5",  confidence, reason: "Full eSIM discount for at-risk users — broader applicability increases redemption rate." };
-    return              { code: "SAVEBIG",   confidence, reason: "Max 10% all-product offer: churned eSIM users need a big nudge to overcome inertia. Broad validity removes friction." };
+    if (tier === 1) return { code: "TRAVEL5", reason, matchLabel, signalCount };
+    if (tier === 2) return { code: "ONLINE5", reason, matchLabel, signalCount };
+    return              { code: "SAVEBIG",  reason, matchLabel, signalCount };
   }
   if (product === "Virtual Number") {
     const code = ["NUMBER5", "NUMBER10", "NUMBER15", "NUMBER20"][tier - 1];
-    return {
-      code, confidence,
-      reason: "Dollar-off codes directly address renewal cost — the #1 reason virtual number users churn. Higher discount for higher-risk segments.",
-    };
+    return { code, reason, matchLabel, signalCount };
   }
   // Mixed / no product
-  if (tier >= 3) return { code: "SAVEBIG",  confidence, reason: "No dominant product — broad 10% discount maximises relevance across any product the user might choose." };
-  return               { code: "LOCAL5",   confidence, reason: "Gentle local-plan nudge for low-risk audience. Avoids over-discounting users who were already active." };
+  if (tier >= 3) return { code: "SAVEBIG", reason, matchLabel, signalCount };
+  return               { code: "LOCAL5",  reason, matchLabel, signalCount };
 }
 
 function buildMessage(offer, filters) {
@@ -146,17 +159,19 @@ function KpiCard({ icon: Icon, label, value, sub, color = "purple" }) {
   );
 }
 
-function ConfidenceBar({ pct }) {
-  const color = pct >= 80 ? "bg-green-500" : pct >= 50 ? "bg-amber-400" : "bg-gray-300";
+function MatchPill({ label, signalCount }) {
+  const tone = signalCount >= 3
+    ? "bg-green-50 text-green-700 border-green-200"
+    : signalCount === 2
+      ? "bg-amber-50 text-amber-700 border-amber-200"
+      : "bg-gray-50 text-gray-600 border-gray-200";
   return (
-    <div className="flex items-center gap-2">
-      <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-      <span className="text-xs font-medium text-gray-500 w-8 text-right">{pct}%</span>
-    </div>
+    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full border ${tone}`}>
+      {label}
+    </span>
   );
 }
+
 
 function WaPreview({ message }) {
   return (
@@ -228,158 +243,34 @@ function PctCell({ num, denom }) {
   );
 }
 
-/* ─────────────────────────── Audience Selector ─────────────────────────── */
+/* ─────────────────────────── Reachability card ─────────────────────────── */
 
-const AUDIENCE_PRODUCT_TABS = ["All", "Calls", "Data eSIM", "Virtual Number"];
-
-function AudienceSelector({ segments, loadingSegments, selectedSegment, selectedProductType, onSelectSegment, onSelectProductType }) {
-  const maxCount = segments.length ? Math.max(...segments.map(s => s.user_count)) : 1;
-
+function ReachabilityCard({ label, count, total, hint, tone, icon: Icon, loading }) {
+  const palette = {
+    emerald: { bg: "bg-emerald-50",  text: "text-emerald-700", num: "text-emerald-800", icon: "text-emerald-500" },
+    blue:    { bg: "bg-blue-50",     text: "text-blue-700",    num: "text-blue-800",    icon: "text-blue-500" },
+  }[tone] ?? { bg: "bg-gray-50", text: "text-gray-600", num: "text-gray-800", icon: "text-gray-400" };
+  const pct = total && count != null ? Math.round((count / total) * 100) : null;
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-          <Target size={16} className="text-purple-500" />
-          Select Audience
-        </h2>
-        {loadingSegments && <RefreshCw size={13} className="animate-spin text-gray-400" />}
+    <div className={`rounded-xl p-3 ${palette.bg}`}>
+      <div className={`flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide ${palette.text}`}>
+        {Icon && <Icon size={12} className={palette.icon} />}
+        {label}
       </div>
-
-      {/* Product type tabs */}
-      <div>
-        <div className="text-xs text-gray-400 font-medium mb-2">Filter by product type</div>
-        <div className="flex gap-1.5 flex-wrap">
-          {AUDIENCE_PRODUCT_TABS.map(tab => (
-            <button
-              key={tab}
-              onClick={() => onSelectProductType(tab === "All" ? null : tab)}
-              className={`px-3.5 py-1.5 text-xs font-semibold rounded-full transition ${
-                (tab === "All" ? !selectedProductType : selectedProductType === tab)
-                  ? "bg-purple-600 text-white shadow-sm"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
-        <p className="text-xs text-gray-400 mt-2">
-          Use the filter bar above to also filter by country, recency, or spend
-        </p>
+      <div className={`text-xl font-bold mt-1 tabular-nums ${palette.num}`}>
+        {loading ? "…" : count != null ? count.toLocaleString() : "—"}
+        {pct != null && <span className={`text-sm font-semibold ml-1.5 ${palette.text}`}>{pct}%</span>}
       </div>
-
-      {/* Segment cards grid + bar chart side by side */}
-      <div className="flex gap-5 items-start">
-
-        {/* 4-column segment card grid */}
-        <div className="flex-1 grid grid-cols-4 gap-3 min-w-0">
-          {loadingSegments && segments.length === 0
-            ? Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="border border-gray-100 rounded-xl p-3 animate-pulse bg-gray-50 h-24" />
-              ))
-            : segments.map(seg => {
-                const color = SEGMENT_COLORS[seg.segment] || KPI.purple;
-                const isSelected = selectedSegment === seg.segment;
-                return (
-                  <div
-                    key={seg.segment}
-                    className={`border rounded-xl p-3 flex flex-col gap-1.5 transition cursor-pointer hover:shadow-md ${
-                      isSelected
-                        ? "border-purple-400 bg-purple-50 shadow-sm"
-                        : "border-gray-100 hover:border-gray-200 bg-white"
-                    }`}
-                    onClick={() => onSelectSegment(isSelected ? null : seg.segment)}
-                  >
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <div
-                        className="w-2.5 h-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: color }}
-                      />
-                      <span className="text-xs font-semibold text-gray-700 leading-tight line-clamp-2">
-                        {seg.segment}
-                      </span>
-                    </div>
-                    <div className="text-base font-bold text-gray-800 tabular-nums">
-                      {seg.user_count != null ? seg.user_count.toLocaleString() : "—"}
-                    </div>
-                    <div className="text-[10px] text-gray-400 leading-tight">
-                      {seg.percentage != null ? `${seg.percentage.toFixed(1)}% of users` : "users"}
-                    </div>
-                    <button
-                      onClick={e => { e.stopPropagation(); onSelectSegment(isSelected ? null : seg.segment); }}
-                      className={`mt-auto text-[10px] font-semibold px-2.5 py-1 rounded-full transition w-fit ${
-                        isSelected
-                          ? "bg-purple-600 text-white"
-                          : "bg-gray-100 text-gray-600 hover:bg-purple-100 hover:text-purple-700"
-                      }`}
-                    >
-                      {isSelected ? "Selected" : "Select"}
-                    </button>
-                  </div>
-                );
-              })
-          }
-        </div>
-
-        {/* Mini horizontal bar chart */}
-        {segments.length > 0 && (
-          <div className="shrink-0 w-56">
-            <div className="text-xs text-gray-400 font-medium mb-2">Users per segment</div>
-            <ResponsiveContainer width="100%" height={segments.length * 28}>
-              <BarChart
-                data={segments}
-                layout="vertical"
-                margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-                barSize={10}
-              >
-                <XAxis
-                  type="number"
-                  hide
-                  domain={[0, maxCount]}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="segment"
-                  width={0}
-                  tick={false}
-                  axisLine={false}
-                  tickLine={false}
-                />
-                <Tooltip
-                  cursor={{ fill: "rgba(124,46,190,0.06)" }}
-                  content={({ active, payload }) => {
-                    if (!active || !payload?.length) return null;
-                    const d = payload[0].payload;
-                    return (
-                      <div className="bg-white border border-gray-100 rounded-lg shadow-lg px-3 py-2 text-xs">
-                        <div className="font-semibold text-gray-700">{d.segment}</div>
-                        <div className="text-gray-500">{d.user_count?.toLocaleString()} users</div>
-                      </div>
-                    );
-                  }}
-                />
-                <Bar dataKey="user_count" radius={[0, 4, 4, 0]}>
-                  {segments.map(seg => (
-                    <Cell
-                      key={seg.segment}
-                      fill={SEGMENT_COLORS[seg.segment] || KPI.purple}
-                      opacity={selectedSegment && selectedSegment !== seg.segment ? 0.35 : 1}
-                    />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        )}
-      </div>
+      <div className={`text-[10px] mt-0.5 ${palette.text}`}>{hint}</div>
     </div>
   );
 }
 
+
 /* ─────────────────────────── Main page ─────────────────────────── */
 
 export default function Campaigns() {
+  const navigate = useNavigate();
   const {
     filters, apiParams, hasActiveFilter, selectedUserCount,
     setSegment, setProductType, clearAll,
@@ -393,6 +284,8 @@ export default function Campaigns() {
   const [stats,        setStats]        = useState(null);
   const [segBreakdown, setSegBreakdown] = useState([]);
   const [loadingStats, setLoadingStats] = useState(false);
+  const [breakdown,    setBreakdown]    = useState(null);
+  const [loadingBreakdown, setLoadingBreakdown] = useState(false);
 
   /* Past campaigns */
   const [pastCampaigns, setPastCampaigns] = useState([]);
@@ -407,8 +300,8 @@ export default function Campaigns() {
   const [nameError,       setNameError]      = useState(false);
   const [copied,          setCopied]         = useState(false);
 
-  /* AI recommendation — pass first-selected segment/product so the offer matcher
-     keeps working with the new multi-select shape. Multi-segment audiences
+  /* Rule-based offer suggestion — pass first-selected segment/product so the
+     matcher keeps working with the multi-select shape. Multi-segment audiences
      fall through to the generic offers. */
   const firstSegment = filters.segment?.[0] ?? null;
   const firstProduct = filters.productType?.[0] ?? null;
@@ -431,8 +324,12 @@ export default function Campaigns() {
 
   /* Fetch audience stats whenever filters change */
   useEffect(() => {
-    if (!hasActiveFilter) { setStats(null); setSegBreakdown([]); return; }
+    if (!hasActiveFilter) {
+      setStats(null); setSegBreakdown([]); setBreakdown(null);
+      return;
+    }
     setLoadingStats(true);
+    setLoadingBreakdown(true);
     Promise.all([
       analytics.overview(apiParams),
       analytics.segmentSummary(apiParams),
@@ -440,6 +337,11 @@ export default function Campaigns() {
       setStats(ov.data);
       setSegBreakdown(seg.data || []);
     }).catch(() => {}).finally(() => setLoadingStats(false));
+
+    analytics.audienceBreakdown(apiParams)
+      .then(({ data }) => setBreakdown(data))
+      .catch(() => setBreakdown(null))
+      .finally(() => setLoadingBreakdown(false));
   }, [JSON.stringify(apiParams), hasActiveFilter]);  // eslint-disable-line
 
   /* Fetch past campaigns once */
@@ -521,7 +423,7 @@ export default function Campaigns() {
     filters.language?.length    > 0 && { label: `Language: ${arrLabel(filters.language)}`, color: KPI.coral },
     filters.recencyMin != null && { label: `Recency: ${filters.recencyMin}–${filters.recencyMax ?? "∞"}d`, color: KPI.pink },
     filters.spendMin   != null && { label: `Spend: $${filters.spendMin}–${filters.spendMax ?? "∞"}`,       color: KPI.teal },
-    filters.nlUserIds    && { label: `NL: "${filters.nlQuestion}"`,                         color: KPI.purple },
+    filters.nlAudienceId && { label: `NL: "${filters.nlQuestion}"`,                         color: KPI.purple },
     filters.lassoUserIds && { label: `${filters.lassoUserIds.length.toLocaleString()} map-selected`, color: KPI.purple },
   ].filter(Boolean);
 
@@ -561,97 +463,224 @@ export default function Campaigns() {
     <div className="space-y-5">
       <PageHeader />
 
-      {/* ── Section 1: Audience Selector (always visible) ───────── */}
-      <AudienceSelector
-        segments={allSegments}
-        loadingSegments={loadingSegments}
-        selectedSegment={filters.segment?.[0] ?? null}
-        selectedProductType={filters.productType?.[0] ?? null}
-        onSelectSegment={seg => setSegment(seg ? [seg] : [])}
-        onSelectProductType={pt => setProductType(pt ? [pt] : [])}
-      />
-
-      {/* ── Audience stats (shown when filters active) ────────────── */}
-      {hasActiveFilter && (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-              <Users size={16} className="text-purple-500" />
-              Who you're targeting
-            </h2>
-            {loadingStats && <RefreshCw size={13} className="animate-spin text-gray-400" />}
-          </div>
-
-          {/* KPI strip */}
-          <div className="grid grid-cols-4 gap-3 mb-4">
-            <KpiCard
-              icon={Users} color="purple" label="Users targeted"
-              value={
-                loadingStats ? "…" :
-                stats ? stats.total_users.toLocaleString() :
-                selectedUserCount ? selectedUserCount.toLocaleString() : "—"
-              }
-              sub="matching your filters"
-            />
-            <KpiCard
-              icon={DollarSign} color="green" label="Avg spend"
-              value={stats ? `$${stats.avg_revenue_per_user.toLocaleString()}` : "—"}
-              sub="per user (lifetime)"
-            />
-            <KpiCard
-              icon={Clock} color="amber" label="Avg recency"
-              value={stats ? `${Math.round(stats.avg_recency_days)}d` : "—"}
-              sub="since last purchase"
-            />
-            <KpiCard
-              icon={BarChart2} color="blue" label="Avg frequency"
-              value={stats ? `${stats.avg_frequency}` : "—"}
-              sub="purchases per user"
-            />
-          </div>
-
-          {/* Filter chips + segment mini-bars in two columns */}
-          <div className="flex gap-4 flex-wrap items-start">
-            {/* Active filters */}
-            <div className="flex-1 min-w-[200px]">
-              <div className="text-xs text-gray-400 font-medium mb-2">Active filters</div>
-              <div className="flex flex-wrap gap-1.5">
-                {filterChips.map((chip, i) => (
-                  <span
-                    key={i}
-                    className="text-xs font-medium px-2.5 py-1 rounded-full text-white"
-                    style={{ backgroundColor: chip.color }}
-                  >
-                    {chip.label}
-                  </span>
-                ))}
+      {/* ── Section 1: Audience snapshot (or empty-state if no filter) ───── */}
+      {!hasActiveFilter ? (
+        <div className="bg-white rounded-2xl border border-dashed border-gray-200 p-10 text-center">
+          <Target className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+          <h2 className="text-lg font-semibold text-gray-700 mb-1">No audience selected yet</h2>
+          <p className="text-sm text-gray-500 mb-4 max-w-md mx-auto">
+            Pick segments, filter by country/recency/spend, or check specific users on the
+            Explore page — then come back here to review and send.
+          </p>
+          <button
+            onClick={() => navigate("/dormant")}
+            className="inline-flex items-center gap-2 bg-purple-600 text-white text-sm font-semibold px-5 py-2.5 rounded-xl hover:bg-purple-700 transition shadow-sm"
+          >
+            <Edit3 size={15} />
+            Build audience on Explore
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Header strip — count + filter chips + Edit-on-Explore */}
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+            <div className="flex items-start justify-between gap-4 mb-3">
+              <div>
+                <h2 className="font-semibold text-gray-800 flex items-center gap-2 text-lg">
+                  <Target size={16} className="text-purple-500" />
+                  Audience snapshot
+                </h2>
+                <p className="text-sm text-gray-500 mt-0.5">
+                  Review who you're about to message before sending.
+                </p>
               </div>
+              <button
+                onClick={() => navigate("/dormant")}
+                className="flex items-center gap-1.5 text-sm text-purple-600 hover:text-purple-800 font-medium shrink-0"
+              >
+                <Edit3 size={13} />
+                Edit on Explore
+              </button>
             </div>
 
-            {/* Segment breakdown mini-bars */}
-            {segBreakdown.length > 0 && (
-              <div className="flex-1 min-w-[220px]">
-                <div className="text-xs text-gray-400 font-medium mb-2">Segment breakdown</div>
-                <div className="space-y-1.5">
-                  {segBreakdown.slice(0, 5).map(s => {
-                    const total = segBreakdown.reduce((a, b) => a + b.user_count, 0);
-                    const pct   = total ? Math.round((s.user_count / total) * 100) : 0;
-                    return (
-                      <div key={s.segment} className="flex items-center gap-2">
-                        <div className="text-xs text-gray-600 w-36 truncate shrink-0">{s.segment}</div>
-                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className="h-full rounded-full"
-                            style={{ width: `${pct}%`, backgroundColor: SEGMENT_COLORS[s.segment] || "#6B7280" }}
-                          />
+            {/* Big number inline with filter chips on a single baseline. */}
+            <div className="flex items-baseline flex-wrap gap-x-2 gap-y-1.5 mb-3">
+              <span className="text-3xl font-bold text-gray-800 tabular-nums leading-none">
+                {loadingStats ? "…" :
+                 stats ? stats.total_users.toLocaleString() :
+                 selectedUserCount ? selectedUserCount.toLocaleString() : "—"}
+              </span>
+              <span className="text-sm text-gray-500 mr-1">
+                user{(stats?.total_users ?? 1) === 1 ? "" : "s"} matching
+              </span>
+              {filterChips.length === 0 ? (
+                <span className="text-xs text-gray-400 italic">— no filters, all dormant users</span>
+              ) : filterChips.map((chip, i) => (
+                <span
+                  key={i}
+                  className="text-xs font-medium px-2.5 py-1 rounded-full text-white"
+                  style={{ backgroundColor: chip.color }}
+                >
+                  {chip.label}
+                </span>
+              ))}
+            </div>
+
+            {/* Reachability + spend + recency strip — campaign-relevant signals
+                that you can't see anywhere else. */}
+            <div className="grid grid-cols-4 gap-3">
+              <ReachabilityCard
+                label="WhatsApp reachable"
+                count={breakdown?.reachable}
+                total={stats?.total_users}
+                hint="has phone + opted-in"
+                tone="emerald"
+                icon={Smartphone}
+                loading={loadingStats || loadingBreakdown}
+              />
+              <ReachabilityCard
+                label="Email backup"
+                count={breakdown?.with_email}
+                total={stats?.total_users}
+                hint="for fallback contact"
+                tone="blue"
+                icon={FileText}
+                loading={loadingStats || loadingBreakdown}
+              />
+              <KpiCard
+                icon={DollarSign} color="green" label="Avg spend"
+                value={stats ? `$${stats.avg_revenue_per_user.toLocaleString()}` : "—"}
+                sub="per user lifetime"
+              />
+              <KpiCard
+                icon={Clock} color="amber" label="Avg recency"
+                value={stats ? `${Math.round(stats.avg_recency_days)}d` : "—"}
+                sub="since last purchase"
+              />
+            </div>
+          </div>
+
+          {/* Two-column: read-only cluster scatter + audience composition */}
+          <div className="grid grid-cols-2 gap-4 items-stretch">
+            <ClusterScatter readOnly />
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 space-y-4 h-full flex flex-col">
+              {/* Segment composition */}
+              <div>
+                <h3 className="font-semibold text-gray-800 text-sm flex items-center gap-1.5 mb-2">
+                  <Users size={13} className="text-purple-500" />
+                  Segment composition
+                </h3>
+                {segBreakdown.length === 0 ? (
+                  <div className="text-xs text-gray-400 italic">No data.</div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {segBreakdown.slice(0, 6).map(s => {
+                      const total = segBreakdown.reduce((a, b) => a + b.user_count, 0);
+                      const pct   = total ? Math.round((s.user_count / total) * 100) : 0;
+                      return (
+                        <div key={s.segment} className="flex items-center gap-2 text-xs">
+                          <div className="text-gray-700 w-36 truncate shrink-0" title={s.segment}>{s.segment}</div>
+                          <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                            <div className="h-full rounded-full"
+                              style={{ width: `${pct}%`, backgroundColor: SEGMENT_COLORS[s.segment] || "#6B7280" }} />
+                          </div>
+                          <div className="w-16 text-right tabular-nums text-gray-500">
+                            {s.user_count.toLocaleString()} <span className="text-gray-400">{pct}%</span>
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-400 w-10 text-right shrink-0">{s.user_count.toLocaleString()}</div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Top countries — bars (matches Languages style for visual consistency) */}
+              <div className="pt-3 border-t border-gray-100">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">Top countries</h3>
+                {breakdown?.countries?.length ? (
+                  <div className="space-y-1">
+                    {breakdown.countries.slice(0, 6).map(c => {
+                      const max = breakdown.countries[0]?.count || 1;
+                      const w = (c.count / max) * 100;
+                      const total = stats?.total_users || 1;
+                      const share = (c.count / total) * 100;
+                      return (
+                        <div key={c.name} className="flex items-center gap-2 text-xs">
+                          <div className="w-20 truncate text-gray-700" title={c.name}>{c.name}</div>
+                          <div className="flex-1 h-3 bg-gray-50 rounded-sm overflow-hidden">
+                            <div className="h-full rounded-sm"
+                              style={{ width: `${w}%`, backgroundColor: BRAND.purple, opacity: 0.85 }} />
+                          </div>
+                          <div className="w-20 text-right tabular-nums text-gray-500">
+                            {c.count.toLocaleString()}<span className="text-gray-400 ml-1">{share.toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : <div className="text-xs text-gray-400 italic">No country data.</div>}
+              </div>
+
+              {/* Languages — compact stacked bar + per-language % rows */}
+              <div className="pt-3 border-t border-gray-100">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  Languages <span className="font-normal text-gray-400 normal-case">(template-localisation hint)</span>
+                </h3>
+                {breakdown?.languages?.length ? (
+                  <div className="flex h-2.5 rounded-md overflow-hidden mb-2 bg-gray-100">
+                    {breakdown.languages.map((r, i) => (
+                      <div key={r.name}
+                        style={{ width: `${(r.count / (stats?.total_users || 1)) * 100}%`,
+                                 backgroundColor: PALETTE[i % PALETTE.length] }}
+                        title={`${r.name}: ${r.count.toLocaleString()}`} />
+                    ))}
+                  </div>
+                ) : null}
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  {(breakdown?.languages || []).slice(0, 6).map((l, i) => (
+                    <div key={l.name} className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 capitalize text-gray-700 truncate" title={l.name}>
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PALETTE[i % PALETTE.length] }} />
+                        {l.name}
+                      </span>
+                      <span className="text-gray-500 tabular-nums shrink-0">
+                        {stats?.total_users ? `${Math.round((l.count / stats.total_users) * 100)}%` : "—"}
+                      </span>
+                    </div>
+                  ))}
                 </div>
               </div>
-            )}
+
+              {/* Dormancy distribution — fills remaining height; campaign-relevant
+                  because it tells the marketer how aggressive the offer should be. */}
+              <div className="pt-3 border-t border-gray-100 flex-1">
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1.5">
+                  How dormant
+                </h3>
+                {breakdown?.recency?.length ? (
+                  <div className="space-y-1">
+                    {breakdown.recency.map(r => {
+                      const max = Math.max(...breakdown.recency.map(x => x.count), 1);
+                      const w = (r.count / max) * 100;
+                      const total = stats?.total_users || 1;
+                      const share = (r.count / total) * 100;
+                      return (
+                        <div key={r.label} className="flex items-center gap-2 text-xs">
+                          <div className="w-14 text-gray-600 shrink-0">{r.label}</div>
+                          <div className="flex-1 h-3 bg-gray-50 rounded-sm overflow-hidden">
+                            <div className="h-full rounded-sm"
+                              style={{ width: `${w}%`, backgroundColor: KPI.rose, opacity: 0.8 }} />
+                          </div>
+                          <div className="w-14 text-right tabular-nums text-gray-500">
+                            {share.toFixed(0)}%
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : <div className="text-xs text-gray-400 italic">No data.</div>}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -659,20 +688,20 @@ export default function Campaigns() {
       {/* ── Sections 2 + 3: Offer + Message (always visible) ──────── */}
       <div className="grid grid-cols-5 gap-5">
 
-        {/* ── Section 2: AI Offer Recommendation ──────────────── */}
+        {/* ── Section 2: Suggested Offer ──────────────────────── */}
         <div className="col-span-3 space-y-4">
 
-          {/* AI Pick */}
-          <div className="bg-white rounded-2xl border border-amber-200 shadow-sm p-5">
+          {/* Suggested Offer */}
+          <div className="bg-white rounded-2xl border border-purple-200 shadow-sm p-5">
             <div className="flex items-center gap-2 mb-1">
-              <Sparkles size={15} className="text-amber-500" />
-              <span className="text-xs font-semibold text-amber-600 uppercase tracking-wide">AI Recommendation</span>
+              <Lightbulb size={15} className="text-purple-500" />
+              <span className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Suggested Offer</span>
               {!(filters.segment?.length > 0) && !(filters.productType?.length > 0) && (
                 <span className="ml-1 text-xs text-gray-400 font-normal">(generic audience)</span>
               )}
-              <span className="ml-auto text-xs text-gray-400">Match confidence</span>
+              <span className="ml-auto"><MatchPill label={rec.matchLabel} signalCount={rec.signalCount} /></span>
             </div>
-            <ConfidenceBar pct={rec.confidence} />
+            <p className="text-[11px] text-gray-400 mt-0.5">Picked by rules from your filters — segment tier, recency, and product.</p>
 
             <div className="mt-4 flex items-start gap-4">
               {/* Code badge */}
@@ -697,9 +726,9 @@ export default function Campaigns() {
                 <div className="text-lg font-bold text-gray-800 leading-tight">{activeOffer.discount}</div>
                 <div className="text-sm text-gray-500 mt-0.5">{activeOffer.description}</div>
 
-                <div className="mt-3 bg-amber-50 border border-amber-100 rounded-lg p-3">
-                  <div className="text-xs font-semibold text-amber-700 mb-1">Why this offer?</div>
-                  <p className="text-xs text-amber-800 leading-relaxed">{rec.reason}</p>
+                <div className="mt-3 bg-gray-50 border border-gray-100 rounded-lg p-3">
+                  <div className="text-xs font-semibold text-gray-600 mb-1">Why this offer?</div>
+                  <p className="text-xs text-gray-700 leading-relaxed font-mono">{rec.reason}</p>
                 </div>
 
                 {rec.altCode && !selectedCode && (
@@ -715,7 +744,7 @@ export default function Campaigns() {
                     onClick={() => setSelectedCode(null)}
                     className="mt-2 text-xs text-gray-400 hover:text-gray-600"
                   >
-                    ↩ Revert to AI pick ({rec.code})
+                    ↩ Revert to suggested ({rec.code})
                   </button>
                 )}
               </div>
@@ -888,7 +917,7 @@ function PastCampaignsTable({ campaigns }) {
                   <td className="px-5 py-3">
                     <div className="font-medium text-gray-800">{c.name}</div>
                     {c.segment_filter && (
-                      <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[160px]">{c.segment_filter}</div>
+                      <div className="text-xs text-gray-400 mt-0.5 truncate max-w-[160px]" title={c.segment_filter}>{c.segment_filter}</div>
                     )}
                   </td>
                   <td className="px-3 py-3">
@@ -938,7 +967,7 @@ function PageHeader() {
         Campaign Builder
       </h1>
       <p className="text-gray-400 text-sm mt-0.5">
-        Target a segment · get an AI-matched offer · preview &amp; send via WhatsApp
+        Target a segment · get a suggested offer · preview &amp; send via WhatsApp
       </p>
     </div>
   );

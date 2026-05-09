@@ -1,20 +1,29 @@
 """
-Seed script — ingests the new merged transaction-level clustered CSV
-(`DF_Merged_Clustered.csv`) and aggregates it into the user-level `users`
-table the dashboard reads from.
+Seed script — populates the local Postgres `users` table from the per-customer
+clustering output in backend/data/clustered/.
 
-The notebook produces one row per purchase. Multiple rows per id_client.
-This script:
-  1. Reads the merged CSV
-  2. Groups by id_client
-  3. Computes user-level aggregates (per-product spend/frequency/cluster, plus
-     totals, plus the primary product = highest spend)
-  4. Wipes and rewrites the `users` table
+Inputs:
+  - Client_All_Clustered.csv      (1 row per customer: totals, segment one-hots,
+                                    contact info, has_calls/esim/virtual flags)
+  - Client_Calls_Clustered.csv    (per-category metrics + cluster_name + cluster id)
+  - Client_eSIM_Clustered.csv
+  - Client_Virtual_Clustered.csv
+  - the raw transaction CSV       (for register_date / first_purchase /
+                                    last_purchase / email / product_types /
+                                    dominant_product — none of which are in
+                                    the clustered files)
 
-Usage (run from the `backend` folder):
+Behavior:
+  - primary_product_group = highest-spend category per customer
+  - product_groups        = comma-joined list of every category the customer buys in
+  - segment / cluster_id  = from the primary category's cluster
+  - calls_cluster / esim_cluster / virtual_cluster populated independently from
+    each per-category file (so a cross-category customer keeps all their labels)
+
+Usage (from the backend/ folder):
     python scripts/seed.py
-    # or with a custom CSV path:
-    python scripts/seed.py --csv "C:/path/to/DF_Merged_Clustered.csv"
+    # or with a custom raw-data path:
+    python scripts/seed.py --raw "C:/path/to/raw.csv"
 """
 import sys, os, argparse
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -26,9 +35,19 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL = os.getenv("DATABASE_URL", "").replace("+asyncpg", "")
-DEFAULT_CSV  = "C:/Users/leenr/Downloads/Clustered Files/Clustered Files/DF_Merged_Clustered.csv"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://admin:admin123@localhost:5432/dormant_users",
+).replace("+asyncpg", "")
 
+BACKEND_DIR     = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+CLUSTERED_DIR   = os.path.join(BACKEND_DIR, "data", "clustered")
+DEFAULT_RAW_CSV = r"C:\Users\leenr\Downloads\Copy of Numero eSIM_purchases (2024 - 2025).csv"
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 def first_nonnull(s: pd.Series):
     s = s.dropna()
@@ -36,120 +55,208 @@ def first_nonnull(s: pd.Series):
 
 
 def clean_phone(val):
-    """Strip non-digit chars (spaces, dashes, plus signs) for E.164-friendly storage."""
+    """Strip non-digit chars for E.164-friendly storage."""
     if val is None or (not isinstance(val, str) and pd.isna(val)):
         return None
     s = "".join(ch for ch in str(val) if ch.isdigit())
     return s or None
 
 
-def mode_or_first(s: pd.Series):
-    s = s.dropna()
+def top_product_types(s: pd.Series, limit: int = 5) -> str | None:
+    """Comma-joined top-N product_types this user purchased, ordered by count."""
+    s = s.dropna().astype(str)
     if not len(s):
         return None
-    m = s.mode()
-    return m.iloc[0] if len(m) else s.iloc[0]
+    return ", ".join(s.value_counts().head(limit).index.tolist())
 
 
-def aggregate_users(df: pd.DataFrame) -> pd.DataFrame:
-    """Transaction rows → one row per id_client."""
-    print(f"Aggregating {len(df):,} transaction rows into user-level rows...")
+def dominant_value(s: pd.Series) -> str | None:
+    s = s.dropna().astype(str)
+    if not len(s):
+        return None
+    return s.value_counts().index[0]
 
-    # Per-product subsets — used for *_spent, *_frequency, *_cluster fields.
-    by_user_group = df.groupby(["id_client", "product_group"])
-    product_spend = by_user_group["price"].sum().unstack(fill_value=0.0)
-    product_count = by_user_group.size().unstack(fill_value=0)
-    product_segment = by_user_group["cluster_name"].agg(first_nonnull).unstack()
-    product_cluster = by_user_group["cluster"].agg(first_nonnull).unstack()
 
-    # Make sure every product column exists even if the CSV only has 1 group.
-    for grp in ("Calls", "Data eSIM", "Virtual Number"):
-        if grp not in product_spend.columns:
-            product_spend[grp]   = 0.0
-            product_count[grp]   = 0
-            product_segment[grp] = None
-            product_cluster[grp] = None
+# ---------------------------------------------------------------------------
+# Main aggregation
+# ---------------------------------------------------------------------------
 
-    # Per-user attributes — first non-null is fine for things that should be
-    # constant per user, mode for platform (which can vary across devices).
-    by_user = df.groupby("id_client")
+def build_users(all_df: pd.DataFrame,
+                calls_df: pd.DataFrame,
+                esim_df: pd.DataFrame,
+                virtual_df: pd.DataFrame,
+                raw_df: pd.DataFrame) -> pd.DataFrame:
+    """Merge the 4 clustered files + raw enrichment into one user-level frame."""
 
-    def top_product_types(s: pd.Series, limit: int = 5) -> str | None:
-        """Comma-joined top-N product_types this user purchased, ordered by count."""
-        s = s.dropna().astype(str)
-        if not len(s):
-            return None
-        vc = s.value_counts()
-        return ", ".join(vc.head(limit).index.tolist())
-
-    base = pd.DataFrame({
-        "user_country":       by_user["User Country"].agg(first_nonnull),
-        "register_date":      by_user["register_date"].min(),
-        "first_purchase":     by_user["purchase_date"].min(),
-        "last_purchase":      by_user["purchase_date"].max(),
-        "recency":            by_user["recency"].min(),
-        "customer_age":       by_user["customer_age"].min(),
-        "total_spent":        by_user["price"].sum(),
-        "purchase_frequency": by_user.size(),
-        "phone_number":       by_user["User phone number"].agg(first_nonnull),
-        "platform":           by_user["platform"].agg(mode_or_first),
-        "language":           by_user["language"].agg(first_nonnull),
-        "email":              by_user["email"].agg(first_nonnull),
-        "product_types":      by_user["product_type"].agg(top_product_types),
+    # --- 1. Start from the All file (1 row per customer, has totals + contact) ---
+    users = all_df.copy().rename(columns={
+        "User Country":       "user_country",
+        "User phone number":  "phone_number",
+        "total_spend":        "total_spent",
+        "total_purchase_count": "purchase_frequency",
     })
+    users = users.set_index("id_client")
 
-    # Per-product spend & frequency.
-    base["calls_spent"]        = product_spend.get("Calls",          0).reindex(base.index, fill_value=0).round(4)
-    base["esim_spent"]         = product_spend.get("Data eSIM",      0).reindex(base.index, fill_value=0).round(4)
-    base["virtual_spent"]      = product_spend.get("Virtual Number", 0).reindex(base.index, fill_value=0).round(4)
-    base["calls_frequency"]    = product_count.get("Calls",          0).reindex(base.index, fill_value=0).astype(int)
-    base["esim_frequency"]     = product_count.get("Data eSIM",      0).reindex(base.index, fill_value=0).astype(int)
-    base["virtual_frequency"]  = product_count.get("Virtual Number", 0).reindex(base.index, fill_value=0).astype(int)
+    # --- 2. Per-category metrics from each Client_<cat>_Clustered.csv ---
+    # We pull EVERYTHING the per-product CSV has on a per-user basis, so
+    # membership filtering ("show me Calls users") can use Calls-specific
+    # recency/spend/aov/velocity instead of mixing in the user's other-
+    # product activity. PC1/PC2 are the per-product PCA coords (one
+    # coordinate space per product, fit in the offline notebook).
+    for prefix, df in [("calls", calls_df), ("esim", esim_df), ("virtual", virtual_df)]:
+        sub = df.set_index("id_client")[
+            ["total_spent", "total_purchases", "cluster", "cluster_name",
+             "customer_age", "PC1", "PC2",
+             "recency", "avg_order_value", "purchase_velocity", "avg_gap_days"]
+        ].rename(columns={
+            "total_spent":       f"{prefix}_spent",
+            "total_purchases":   f"{prefix}_frequency",
+            "cluster":           f"{prefix}_cluster_id",
+            "cluster_name":      f"{prefix}_cluster",
+            "customer_age":      f"{prefix}_customer_age",
+            "PC1":               f"{prefix}_pc1",
+            "PC2":               f"{prefix}_pc2",
+            "recency":           f"{prefix}_recency",
+            "avg_order_value":   f"{prefix}_aov",
+            "purchase_velocity": f"{prefix}_velocity",
+            "avg_gap_days":      f"{prefix}_gap_days",
+        })
+        users = users.join(sub, how="left")
 
-    base["calls_cluster"]      = product_segment.get("Calls",          None).reindex(base.index)
-    base["esim_cluster"]       = product_segment.get("Data eSIM",      None).reindex(base.index)
-    base["virtual_cluster"]    = product_segment.get("Virtual Number", None).reindex(base.index)
+    # Fill missing per-category numbers with 0 (customer didn't buy in that category)
+    for prefix in ("calls", "esim", "virtual"):
+        users[f"{prefix}_spent"]     = users[f"{prefix}_spent"].fillna(0).astype(float).round(4)
+        users[f"{prefix}_frequency"] = users[f"{prefix}_frequency"].fillna(0).astype(int)
 
-    # Primary product = highest spend across the three.
-    spend_matrix = np.column_stack([base["calls_spent"], base["esim_spent"], base["virtual_spent"]])
-    primary_idx  = np.argmax(spend_matrix, axis=1)
-    products     = ["Calls", "Data eSIM", "Virtual Number"]
-    seg_cols     = ["calls_cluster", "esim_cluster", "virtual_cluster"]
+    # customer_age should be the same across categories for the same customer; take first
+    age_cols = ["calls_customer_age", "esim_customer_age", "virtual_customer_age"]
+    users["customer_age"] = users[age_cols].bfill(axis=1).iloc[:, 0]
+    users = users.drop(columns=age_cols)
 
-    base["primary_product_group"] = [products[i] for i in primary_idx]
-    base["segment"] = [base.iloc[r][seg_cols[i]] for r, i in enumerate(primary_idx)]
+    # --- 3. Primary product group = highest-spend category ---
+    spend_cols       = ["calls_spent", "esim_spent", "virtual_spent"]
+    primary_idx      = users[spend_cols].values.argmax(axis=1)
+    products         = ["Calls", "Data eSIM", "Virtual Number"]
+    cluster_id_cols  = ["calls_cluster_id", "esim_cluster_id", "virtual_cluster_id"]
+    cluster_name_cols = ["calls_cluster", "esim_cluster", "virtual_cluster"]
 
-    # cluster_id from the primary product's cluster integer
-    pc_calls   = product_cluster.get("Calls",          None).reindex(base.index)
-    pc_esim    = product_cluster.get("Data eSIM",      None).reindex(base.index)
-    pc_virtual = product_cluster.get("Virtual Number", None).reindex(base.index)
-    pc_stack   = pd.DataFrame({"Calls": pc_calls, "Data eSIM": pc_esim, "Virtual Number": pc_virtual})
-    base["cluster_id"] = [pc_stack.iloc[r][products[i]] for r, i in enumerate(primary_idx)]
-    base["cluster_id"] = pd.array(base["cluster_id"].values, dtype=pd.Int64Dtype())
+    users["primary_product_group"] = [products[i] for i in primary_idx]
+    users["cluster_id"] = [
+        users.iloc[r][cluster_id_cols[i]] for r, i in enumerate(primary_idx)
+    ]
+    users["cluster_id"] = pd.array(users["cluster_id"].values, dtype=pd.Int64Dtype())
+    users["segment"] = [
+        users.iloc[r][cluster_name_cols[i]] for r, i in enumerate(primary_idx)
+    ]
+    users = users.drop(columns=cluster_id_cols)
 
-    base = base.reset_index()
-    print(f"  -> {len(base):,} unique users")
-    print("\nPrimary product distribution:")
-    print(base["primary_product_group"].value_counts().to_string())
-    print("\nSegment distribution:")
-    print(base["segment"].value_counts().to_string())
-    return base
+    # --- 4. product_groups (NEW): comma-joined list of all categories the customer is in ---
+    def joined_groups(row):
+        out = []
+        if row.get("has_calls"):   out.append("Calls")
+        if row.get("has_esim"):    out.append("Data eSIM")
+        if row.get("has_virtual"): out.append("Virtual Number")
+        return ", ".join(out) if out else None
+    users["product_groups"] = users.apply(joined_groups, axis=1)
+
+    # --- 5. Enrich with raw-data fields not in clustered files ---
+    print(f"  enriching from raw data ({len(raw_df):,} transactions)...")
+    raw_grp = raw_df.groupby("id_client")
+    enrich = pd.DataFrame({
+        "register_date":    raw_grp["register_date"].min(),
+        "first_purchase":   raw_grp["purchase_date"].min(),
+        "last_purchase":    raw_grp["purchase_date"].max(),
+        "email":            raw_grp["email"].agg(first_nonnull),
+        "product_types":    raw_grp["product_type"].agg(top_product_types),
+        "dominant_product": raw_grp["product"].agg(dominant_value),
+    })
+    users = users.join(enrich, how="left")
+
+    # --- 6. Final clean ---
+    users["phone_number"]       = users["phone_number"].apply(clean_phone)
+    users["total_spent"]        = users["total_spent"].astype(float).round(4)
+    users["purchase_frequency"] = users["purchase_frequency"].astype(int)
+    users["recency"]            = users["recency"].fillna(0).astype(int)
+    users["customer_age"]       = users["customer_age"].fillna(0).astype(int)
+
+    return users.reset_index()
 
 
-def seed(csv_path: str):
+# ---------------------------------------------------------------------------
+# Insertion
+# ---------------------------------------------------------------------------
+
+USER_COLUMNS = [
+    "id_client", "user_country", "register_date", "first_purchase", "last_purchase",
+    "recency", "customer_age", "total_spent", "purchase_frequency",
+    "calls_spent", "esim_spent", "virtual_spent",
+    "calls_frequency", "esim_frequency", "virtual_frequency",
+    "calls_cluster", "esim_cluster", "virtual_cluster",
+    "calls_pc1", "calls_pc2", "esim_pc1", "esim_pc2", "virtual_pc1", "virtual_pc2",
+    "calls_recency", "esim_recency", "virtual_recency",
+    "calls_aov", "esim_aov", "virtual_aov",
+    "calls_velocity", "esim_velocity", "virtual_velocity",
+    "calls_gap_days", "esim_gap_days", "virtual_gap_days",
+    "primary_product_group", "cluster_id", "segment", "product_groups",
+    "product_types", "dominant_product",
+    "phone_number", "platform", "language", "email",
+]
+
+
+# Per-product recency comes out of pandas as float64 (because of NaNs for
+# users who don't buy that product). Postgres `Integer` columns reject that —
+# coerce to int when the value is present, leave NULL otherwise.
+_INT_COLS = {"calls_recency", "esim_recency", "virtual_recency"}
+
+
+def to_record(row: pd.Series) -> dict:
+    rec = {}
+    for col in USER_COLUMNS:
+        val = row.get(col)
+        if val is None or (not isinstance(val, str) and pd.isna(val)):
+            rec[col] = None
+        else:
+            rec[col] = int(val) if col in _INT_COLS else val
+    rec["id_client"] = int(rec["id_client"])
+    return rec
+
+
+def seed(raw_csv: str):
     if not DATABASE_URL:
         sys.exit("ERROR: DATABASE_URL not set. Start Postgres and check your .env.")
-    if not os.path.exists(csv_path):
-        sys.exit(f"ERROR: CSV not found at {csv_path}")
+    if not os.path.exists(raw_csv):
+        sys.exit(f"ERROR: raw CSV not found at {raw_csv}")
 
-    print(f"Loading {csv_path} ...")
-    df = pd.read_csv(csv_path, encoding="utf-8", low_memory=False)
-    df["purchase_date"] = pd.to_datetime(df["purchase_date"], errors="coerce")
-    df["register_date"] = pd.to_datetime(df["register_date"], errors="coerce")
+    # Load clustered CSVs ----------------------------------------------------
+    print("Loading clustered CSVs...")
+    all_df     = pd.read_csv(os.path.join(CLUSTERED_DIR, "Client_All_Clustered.csv"))
+    calls_df   = pd.read_csv(os.path.join(CLUSTERED_DIR, "Client_Calls_Clustered.csv"))
+    esim_df    = pd.read_csv(os.path.join(CLUSTERED_DIR, "Client_eSIM_Clustered.csv"))
+    virtual_df = pd.read_csv(os.path.join(CLUSTERED_DIR, "Client_Virtual_Clustered.csv"))
+    print(f"  All:     {len(all_df):,}    Calls: {len(calls_df):,}    "
+          f"eSIM: {len(esim_df):,}    Virtual: {len(virtual_df):,}")
 
-    users_df = aggregate_users(df)
+    # Load raw for enrichment fields ----------------------------------------
+    print(f"Loading raw transactions from {raw_csv}...")
+    raw_df = pd.read_csv(raw_csv, low_memory=False)
+    raw_df = raw_df.rename(columns={"prodcut": "product"})
+    # MM/DD/YYYY US format. format='mixed' handles both M/D and MM/DD.
+    raw_df["purchase_date"] = pd.to_datetime(raw_df["purchase_date"], format="mixed", errors="coerce")
+    raw_df["register_date"] = pd.to_datetime(raw_df["register_date"], format="mixed", errors="coerce")
+    raw_df = raw_df.dropna(subset=["purchase_date"])
 
-    # Drop & re-create tables.
+    # Build the user-level frame --------------------------------------------
+    print("Building user-level frame...")
+    users_df = build_users(all_df, calls_df, esim_df, virtual_df, raw_df)
+    print(f"  -> {len(users_df):,} users")
+    print("\nPrimary product distribution:")
+    print(users_df["primary_product_group"].value_counts().to_string())
+    print("\nSegment distribution:")
+    print(users_df["segment"].value_counts().to_string())
+    print(f"\nCross-category buyers (product_groups contains a comma): "
+          f"{users_df['product_groups'].fillna('').str.contains(',').sum():,}")
+
+    # Wipe & rewrite tables --------------------------------------------------
     engine = create_engine(DATABASE_URL, echo=False)
     with engine.connect() as conn:
         print("\nDropping existing users + cluster_runs tables...")
@@ -157,89 +264,45 @@ def seed(csv_path: str):
         conn.execute(text("DROP TABLE IF EXISTS cluster_runs CASCADE"))
         conn.commit()
 
-    import models
+    import models  # noqa: F401  (registers tables on Base)
     models.Base.metadata.create_all(engine)
 
-    # Build records in the schema the User model expects.
-    records = []
-    for _, row in users_df.iterrows():
-        def v(col, cast=None, default=None):
-            val = row.get(col)
-            if val is None or (not isinstance(val, str) and pd.isna(val)):
-                return default
-            return cast(val) if cast else val
-
-        records.append({
-            "id_client":             int(row["id_client"]),
-            "user_country":          v("user_country"),
-            "register_date":         v("register_date"),
-            "first_purchase":        v("first_purchase"),
-            "last_purchase":         v("last_purchase"),
-            "recency":               v("recency", int),
-            "customer_age":          v("customer_age", int),
-            "total_spent":           round(v("total_spent", float, 0), 4),
-            "purchase_frequency":    v("purchase_frequency", int, 0),
-            "calls_spent":           round(float(row["calls_spent"]), 4),
-            "esim_spent":            round(float(row["esim_spent"]), 4),
-            "virtual_spent":         round(float(row["virtual_spent"]), 4),
-            "calls_frequency":       int(row["calls_frequency"]),
-            "esim_frequency":        int(row["esim_frequency"]),
-            "virtual_frequency":     int(row["virtual_frequency"]),
-            "calls_cluster":         v("calls_cluster"),
-            "esim_cluster":          v("esim_cluster"),
-            "virtual_cluster":       v("virtual_cluster"),
-            "primary_product_group": v("primary_product_group"),
-            "cluster_id":            v("cluster_id", int),
-            "segment":               v("segment"),
-            "product_types":         v("product_types"),
-            "phone_number":          clean_phone(v("phone_number")),
-            "platform":              v("platform"),
-            "language":              v("language"),
-            "email":                 v("email"),
-        })
-
+    # Build records and insert in batches -----------------------------------
+    print(f"\nInserting {len(users_df):,} users...")
     BATCH = 2000
-    print(f"\nInserting {len(records):,} users in batches of {BATCH}...")
-    with engine.connect() as conn:
-        for i in range(0, len(records), BATCH):
-            batch = records[i:i + BATCH]
-            conn.execute(text("""
-                INSERT INTO users (
-                    id_client, user_country, register_date, first_purchase, last_purchase,
-                    recency, customer_age, total_spent, purchase_frequency,
-                    calls_spent, esim_spent, virtual_spent,
-                    calls_frequency, esim_frequency, virtual_frequency,
-                    calls_cluster, esim_cluster, virtual_cluster,
-                    primary_product_group, cluster_id, segment, product_types,
-                    phone_number, platform, language, email
-                ) VALUES (
-                    :id_client, :user_country, :register_date, :first_purchase, :last_purchase,
-                    :recency, :customer_age, :total_spent, :purchase_frequency,
-                    :calls_spent, :esim_spent, :virtual_spent,
-                    :calls_frequency, :esim_frequency, :virtual_frequency,
-                    :calls_cluster, :esim_cluster, :virtual_cluster,
-                    :primary_product_group, :cluster_id, :segment, :product_types,
-                    :phone_number, :platform, :language, :email
-                ) ON CONFLICT (id_client) DO NOTHING
-            """), batch)
-            conn.commit()
-            print(f"  {min(i+BATCH, len(records)):,}/{len(records):,}", end="\r")
+    cols_csv = ", ".join(USER_COLUMNS)
+    placeholders = ", ".join(f":{c}" for c in USER_COLUMNS)
+    insert_sql = text(f"""
+        INSERT INTO users ({cols_csv}) VALUES ({placeholders})
+        ON CONFLICT (id_client) DO NOTHING
+    """)
 
-        # Cluster runs metadata.
+    with engine.connect() as conn:
+        for i in range(0, len(users_df), BATCH):
+            batch = [to_record(r) for _, r in users_df.iloc[i:i + BATCH].iterrows()]
+            conn.execute(insert_sql, batch)
+            conn.commit()
+            print(f"  {min(i + BATCH, len(users_df)):,}/{len(users_df):,}", end="\r")
+
+        # Cluster-run metadata row
         conn.execute(text("""
-            INSERT INTO cluster_runs (run_at, n_clusters, algorithm, features_used, centroids, cluster_stats, is_active, notes)
-            VALUES (NOW(), 9, 'MiniBatchKMeans (per product)',
-                '["recency","customer_age","total_spent","purchase_frequency","price","product_type"]',
-                '[]', '{}', true,
-                'Seeded from DF_Merged_Clustered.csv — 3 clusters per product group, 9 segments total')
+            INSERT INTO cluster_runs (run_at, n_clusters, algorithm, features_used,
+                                      centroids, cluster_stats, is_active, notes)
+            VALUES (NOW(), 12, 'KMeans (per-category, behavioral features)',
+                    '["recency","customer_age","total_purchases","total_spent",
+                      "avg_order_value","unique_products","purchase_velocity",
+                      "avg_gap_days","spend_<product>","share_<product>"]',
+                    '[]', '{}', true,
+                    'Seeded from backend/data/clustered/ — 12 segments across Calls / eSIM / Virtual')
         """))
         conn.commit()
 
-    print(f"\nDone. {len(records):,} users seeded.")
+    print(f"\nDone. {len(users_df):,} users seeded.")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--csv", default=DEFAULT_CSV, help="Path to DF_Merged_Clustered.csv")
-    args = parser.parse_args()
-    seed(args.csv)
+    p = argparse.ArgumentParser()
+    p.add_argument("--raw", default=DEFAULT_RAW_CSV,
+                   help="Path to the raw transaction CSV (for date / email / product_type enrichment)")
+    args = p.parse_args()
+    seed(args.raw)

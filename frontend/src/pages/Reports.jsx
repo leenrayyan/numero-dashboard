@@ -262,7 +262,7 @@ export default function Reports() {
                 >
                   {/* Name + meta */}
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-800 truncate">{c.name}</div>
+                    <div className="font-medium text-gray-800 truncate" title={c.name}>{c.name}</div>
                     <div className="text-xs text-gray-400 mt-0.5 flex items-center gap-2 flex-wrap">
                       <span>{c.created_at ? new Date(c.created_at).toLocaleDateString("en-GB", { day:"numeric", month:"short", year:"numeric" }) : "—"}</span>
                       {c.offer_code && <span className="font-mono bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded text-[10px]">{c.offer_code}</span>}

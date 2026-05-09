@@ -3,32 +3,36 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from typing import Optional
 from database import get_db
-from filter_helpers import build_where
+from filter_helpers import build_where, aggregate_columns
 
 router = APIRouter()
 
 # Numero-brand palette — kept in sync with frontend/src/constants/colors.js.
-# Cool blue→purple→rose spectrum derived from the logo gradient.
+# 12 segments across Calls / eSIM / Virtual. Picked to maximise pairwise hue
+# distinctness so adjacent legend pills read as separate colours.
 SEGMENT_COLORS = {
-    # Top tier — most populous, maximise distinction.
-    "Virtual - High Value Loyal (At Risk)":    "#5B3A9E",
-    "eSIM - Mid Value Active":                 "#4FA88C",
-    "Calls - High Value Loyal (At Risk)":      "#B0456E",
-    # Mid tier — distinct hues.
-    "Virtual - Mid Value Inactive":            "#D8896B",
-    "eSIM - High Value Users (At Risk)":       "#2A7FB8",
-    "eSIM - Low Value Inactive":               "#3D9DB0",
-    # Long tail — related-but-shifted hues so no twin pair appears in any legend.
-    "Calls - Frequent Low Spenders (Cooling)": "#9B5DB8",
-    "Virtual - Low Value Active":              "#C8825A",
-    "Calls - Low Value Active":                "#6B7CC8",
+    # Calls (4)
+    "Calls - High-Value Power Users":                          "#B0456E",  # brand rose
+    "Calls - Active Offer-Driven Customers":                   "#D8896B",  # coral
+    "Calls - At-Risk Customers":                               "#E8B945",  # mustard amber (warning-tier)
+    "Calls - One-Time Customers":                              "#A0A0A0",  # neutral grey
+    # eSIM (3)
+    "eSIM - High-Value Global Power Users":                    "#2A7FB8",  # brand blue
+    "eSIM - Local Data Users":                                 "#3D9DB0",  # turquoise
+    "eSIM - Data-Only Minimal Users":                          "#6B7CC8",  # periwinkle
+    # Virtual (5)
+    "Virtual - High-Value Power Users":                        "#5B3A9E",  # brand deep purple
+    "Virtual - Loyal Infrequent Buyers":                       "#4FA88C",  # brand sage green
+    "Virtual - Churned Low-Value Users":                       "#9B5DB8",  # plum
+    "Virtual - Low-Value Single-Product Users (Local Plan)":   "#C8825A",  # burnt orange
+    "Virtual - EU Bundle Focused Customers":                   "#DA5C8E",  # bright magenta
 }
 
 
 def _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max,
-       platform=None, language=None):
+       platform=None, language=None, audience=None):
     return build_where(segment, min_recency, max_recency, user_ids, country, product_group,
-                       spend_min, spend_max, platform=platform, language=language)
+                       spend_min, spend_max, platform=platform, language=language, audience=audience)
 
 
 @router.get("/")
@@ -44,16 +48,18 @@ async def get_segmentation(
     spend_max: Optional[float]   = Query(None),
     platform: Optional[str]      = Query(None),
     language: Optional[str]      = Query(None),
+    audience: Optional[str]      = Query(None),
 ):
-    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language)
+    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language, audience)
+    cols = aggregate_columns(product_group)
     result = await db.execute(text(f"""
         SELECT cluster_id, segment, primary_product_group,
                COUNT(*)                AS user_count,
-               AVG(total_spent)        AS avg_monetary,
-               SUM(total_spent)        AS total_monetary,
-               AVG(recency)            AS avg_recency,
-               AVG(purchase_frequency) AS avg_frequency,
-               AVG(total_spent / NULLIF(purchase_frequency, 0)) AS avg_aov
+               AVG({cols['spend']})    AS avg_monetary,
+               SUM({cols['spend']})    AS total_monetary,
+               AVG({cols['recency']})  AS avg_recency,
+               AVG({cols['frequency']}) AS avg_frequency,
+               AVG({cols['aov']})      AS avg_aov
         FROM users WHERE segment IS NOT NULL AND {where}
         GROUP BY cluster_id, segment, primary_product_group
         ORDER BY primary_product_group, cluster_id
@@ -98,10 +104,12 @@ async def get_revenue_by_segment(
     spend_max: Optional[float]   = Query(None),
     platform: Optional[str]      = Query(None),
     language: Optional[str]      = Query(None),
+    audience: Optional[str]      = Query(None),
 ):
-    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language)
+    where, params = _w(segment, min_recency, max_recency, user_ids, country, product_group, spend_min, spend_max, platform, language, audience)
+    cols = aggregate_columns(product_group)
     result = await db.execute(text(f"""
-        SELECT segment, SUM(total_spent) AS total_revenue
+        SELECT segment, SUM({cols['spend']}) AS total_revenue
         FROM users WHERE segment IS NOT NULL AND {where}
         GROUP BY segment ORDER BY total_revenue DESC
     """), params)

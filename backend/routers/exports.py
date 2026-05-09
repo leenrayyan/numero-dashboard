@@ -11,7 +11,7 @@ import csv
 import io
 from datetime import datetime, timezone
 from database import get_db
-from filter_helpers import build_where
+from filter_helpers import build_where, aggregate_columns
 
 router = APIRouter()
 
@@ -53,25 +53,32 @@ async def export_users(
     max_age:       Optional[int]   = Query(None),
     platform:      Optional[str]   = Query(None),
     language:      Optional[str]   = Query(None),
+    audience:      Optional[str]   = Query(None),
 ):
     where, params = build_where(
         segment, min_recency, max_recency, user_ids,
         country, product_group, spend_min, spend_max, min_age, max_age,
-        platform, language,
+        platform, language, audience,
     )
+    # When a single product is filtered, surface that product's per-user
+    # metrics in the global-named columns so the export reflects the filter.
+    cols = aggregate_columns(product_group)
     # phone_number is intentionally included in the export — this is the data
     # path the WhatsApp campaign sender consumes. UI views never expose it.
     result = await db.execute(text(f"""
         SELECT
             id_client, segment, primary_product_group, user_country,
             platform, language,
-            recency, customer_age, total_spent, purchase_frequency,
+            {cols['recency']}   AS recency,
+            customer_age,
+            {cols['spend']}     AS total_spent,
+            {cols['frequency']} AS purchase_frequency,
             calls_spent, esim_spent, virtual_spent,
             calls_frequency, esim_frequency, virtual_frequency,
             phone_number, whatsapp_opted_in, last_campaign_at,
             reactivation_score, register_date, first_purchase, last_purchase
         FROM users WHERE {where}
-        ORDER BY total_spent DESC
+        ORDER BY {cols['spend']} DESC NULLS LAST
         LIMIT 50000
     """), params)
     cols = result.keys()
@@ -89,17 +96,18 @@ async def export_segments(
     where, params = build_where(
         segment=segment, product_group=product_group, country=country
     )
+    cols = aggregate_columns(product_group)
     result = await db.execute(text(f"""
         SELECT
             segment,
             primary_product_group AS product_group,
             COUNT(*)                                            AS user_count,
-            ROUND(AVG(total_spent)::numeric, 2)                AS avg_spend,
-            ROUND(SUM(total_spent)::numeric, 2)                AS total_revenue,
-            ROUND(AVG(recency)::numeric, 0)                    AS avg_recency_days,
-            ROUND(AVG(purchase_frequency)::numeric, 1)         AS avg_frequency,
-            ROUND(AVG(total_spent / NULLIF(purchase_frequency,0))::numeric, 2) AS avg_aov,
-            COUNT(*) FILTER (WHERE whatsapp_opted_in IS TRUE)  AS wa_reachable
+            ROUND(AVG({cols['spend']})::numeric, 2)             AS avg_spend,
+            ROUND(SUM({cols['spend']})::numeric, 2)             AS total_revenue,
+            ROUND(AVG({cols['recency']})::numeric, 0)           AS avg_recency_days,
+            ROUND(AVG({cols['frequency']})::numeric, 1)         AS avg_frequency,
+            ROUND(AVG({cols['aov']})::numeric, 2)               AS avg_aov,
+            COUNT(*) FILTER (WHERE whatsapp_opted_in IS TRUE)   AS wa_reachable
         FROM users WHERE segment IS NOT NULL AND {where}
         GROUP BY segment, primary_product_group
         ORDER BY total_revenue DESC

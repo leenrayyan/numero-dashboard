@@ -1,7 +1,11 @@
-# Production-safe deps used by the deployed Render service.
-# Smart Query (vanna + chromadb + gemini) is excluded — it needs a persistent
-# vector store that Render's free tier doesn't provide.
-# For local development with Smart Query, also install requirements-dev.txt.
+# Core backend dependencies.
+# Smart Query (vanna + chromadb + gemini) is in requirements-dev.txt — install
+# both when running locally:
+#   pip install -r requirements.txt -r requirements-dev.txt
+#
+# Reactivation scoring lives in the team's notebook (not in this backend).
+# We just ingest the resulting CSV via scripts/ingest_reactivation_scores.py
+# — no ML libs needed at runtime.
 
 fastapi>=0.111.0
 uvicorn[standard]>=0.29.0
@@ -11,9 +15,9 @@ alembic>=1.13.0
 psycopg2-binary>=2.9.9
 pandas>=2.0.0
 numpy>=1.26.0
-scikit-learn>=1.4.0
 redis>=5.0.0
 python-dotenv>=1.0.0
 httpx>=0.27.0
 pydantic>=2.0.0
 pydantic-settings>=2.0.0
+orjson>=3.10.0

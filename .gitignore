@@ -20,6 +20,9 @@ dist/
 # --- Vector store (regenerated locally from train_vanna.py) ---
 backend/chroma_db/
 
+# --- Runtime logs (uvicorn / vanna_queries.jsonl) — local only ---
+backend/logs/
+
 # --- Local development databases / caches ---
 *.sqlite
 *.sqlite3
@@ -40,10 +43,6 @@ Thumbs.db
 .claude/launch.json
 .claude/worktrees/
 
-# --- Reactivation cache ---
+# --- Misc ---
 *.parquet
-!backend/reactivation/data/processed/*.parquet
 
-# --- Deploy seed dumps are explicitly tracked (override) ---
-!backend/scripts/seed_data/
-!backend/scripts/seed_data/*.csv

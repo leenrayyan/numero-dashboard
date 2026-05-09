@@ -14,10 +14,18 @@ export const analytics = {
   segmentTrend:  (fp) => api.get("/api/analytics/segment-trend",  { params: fp }),
   dormantWeekly: (fp) => api.get("/api/analytics/dormant-weekly", { params: fp }),
   segmentSummary:(fp) => api.get("/api/analytics/segment-summary",{ params: fp }),
+  reactivationDist: (fp) => api.get("/api/analytics/reactivation-distribution", { params: fp }),
+  audienceBreakdown: (fp) => api.get("/api/analytics/audience-breakdown", { params: fp }),
+  // Percentile cutoffs (HIGH ≥ p80, MEDIUM ≥ p50) of the current
+  // `users.reactivation_score` distribution. Used by ReactivationBadge to
+  // colour the user-table chip without hardcoding fixed thresholds (which
+  // empty out when a model doesn't reach absolute probabilities like 0.7).
+  reactivationCutoffs: () => api.get("/api/analytics/reactivation-cutoffs"),
 };
 
 export const users = {
   list:      (params) => api.get("/api/users/",          { params }),
+  ids:       (params) => api.get("/api/users/ids",       { params }),
   get:       (id)     => api.get(`/api/users/${id}`),
   countries: ()       => api.get("/api/users/countries"),
   platforms: ()       => api.get("/api/users/platforms"),
@@ -31,13 +39,20 @@ export const segmentation = {
 
 export const clusters = {
   list:  (params)      => api.get("/api/clusters/",       { params }),
-  users: (id, params)  => api.get(`/api/clusters/${id}/users`, { params }),
-  rerun: (n)           => api.post("/api/clusters/rerun", null, { params: { n_clusters: n } }),
-  pca:   (sample, params) => api.get("/api/clusters/pca", { params: { sample_size: sample || 3000, ...params } }),
+  // Lookup by segment NAME (e.g. "Calls - High-Value Power Users") — cluster
+  // IDs aren't unique across products and the old `/clusters/{id}/users`
+  // endpoint silently returned mixed-product users. Segment names are unique.
+  usersBySegment: (segmentName, params) =>
+    api.get(`/api/clusters/by-segment/${encodeURIComponent(segmentName)}/users`, { params }),
+  // PCA coords are pre-computed per product in the seed (one PCA fit per
+  // product group). Endpoint returns { mode, panels: [{ product, points }] }
+  // — single panel when one product is selected, three panels otherwise.
+  pca:   (params)      => api.get("/api/clusters/pca", { params }),
 };
 
 export const query = {
-  ask: (question) => api.post("/api/query/", { question }),
+  ask:      (question)         => api.post("/api/query/", { question }),
+  feedback: (payload)          => api.post("/api/query/feedback", payload),
 };
 
 export const campaigns = {

@@ -7,14 +7,14 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://admin:admin123@localhost:5432/dormant_users")
 
-# Render's managed Postgres ships URLs as `postgres://` — SQLAlchemy needs `postgresql://`.
+# Some hosted Postgres providers use `postgres://`; SQLAlchemy needs `postgresql://`.
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
 # asyncpg driver scheme.
 ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
 
-# Render Postgres requires SSL. asyncpg uses `ssl=true` (NOT `sslmode=require` like psycopg2).
+# Hosted Postgres often requires SSL. asyncpg uses `ssl=true` (NOT `sslmode=require` like psycopg2).
 # Strip `?sslmode=...` from the URL and pass `ssl=True` via connect_args instead.
 connect_args = {}
 if "sslmode=" in ASYNC_DATABASE_URL:
@@ -40,8 +40,7 @@ async def get_db():
 
 async def init_db():
     """Create tables on startup. If RESET_DB=true, wipe `users` and `cluster_runs`
-    first so the next seed run repopulates them — used when shipping a new dataset.
-    Toggle the env var on Render once, deploy, then unset it."""
+    first so the next seed run repopulates them — used when shipping a new dataset."""
     reset = os.getenv("RESET_DB", "").lower() in ("1", "true", "yes")
     async with engine.begin() as conn:
         if reset:
