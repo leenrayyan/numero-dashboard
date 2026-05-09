@@ -1,0 +1,202 @@
+{
+  "SAVEBIG": {
+    "code": "SAVEBIG",
+    "label": "Save Big",
+    "discount": "10% off",
+    "discount_pct": 10,
+    "product": "All",
+    "description": "10% off any Numero purchase — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["Churned / At-Risk Users", "High Value At-Risk"]
+  },
+  "TRAVEL5": {
+    "code": "TRAVEL5",
+    "label": "Travel Data Discount",
+    "discount": "5% off",
+    "discount_pct": 5,
+    "product": "Data eSIM",
+    "description": "5% off eSIM travel data plans — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["High Value Loyal", "High Value Customers"]
+  },
+  "ONLINE5": {
+    "code": "ONLINE5",
+    "label": "Full eSIM Discount",
+    "discount": "5% off",
+    "discount_pct": 5,
+    "product": "Data eSIM",
+    "description": "5% off Full eSIM plans — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["Mid Value At-Risk", "Low Value Active"]
+  },
+  "NUMBER5": {
+    "code": "NUMBER5",
+    "label": "$5 Off Virtual Number",
+    "discount": "$5 off",
+    "discount_pct": null,
+    "product": "Virtual Number",
+    "description": "$5 off any virtual number purchase — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["High Value Loyal", "New / Low-Value Active Users"]
+  },
+  "NUMBER10": {
+    "code": "NUMBER10",
+    "label": "$10 Off Virtual Number",
+    "discount": "$10 off",
+    "discount_pct": null,
+    "product": "Virtual Number",
+    "description": "$10 off any virtual number purchase — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["Mid Value At-Risk", "Low Value Active"]
+  },
+  "NUMBER15": {
+    "code": "NUMBER15",
+    "label": "$15 Off Virtual Number",
+    "discount": "$15 off",
+    "discount_pct": null,
+    "product": "Virtual Number",
+    "description": "$15 off any virtual number purchase — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["High Value At-Risk", "Occasional High Spenders"]
+  },
+  "NUMBER20": {
+    "code": "NUMBER20",
+    "label": "$20 Off Virtual Number",
+    "discount": "$20 off",
+    "discount_pct": null,
+    "product": "Virtual Number",
+    "description": "$20 off any virtual number purchase — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["Churned / At-Risk Users"]
+  },
+  "SMNUMBER10": {
+    "code": "SMNUMBER10",
+    "label": "$10 Off US Social Media Number",
+    "discount": "$10 off",
+    "discount_pct": null,
+    "product": "Virtual Number",
+    "description": "$10 off USA Social Media virtual number — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["Mid Value At-Risk", "Occasional High Spenders"]
+  },
+  "CALL5": {
+    "code": "CALL5",
+    "label": "$5 Calling Credit Bonus",
+    "discount": "+$5 credit",
+    "discount_pct": null,
+    "product": "Calls",
+    "description": "$5 bonus calling credit on your next recharge — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["High Value Loyal", "New / Low-Value Active Users"]
+  },
+  "CALL10": {
+    "code": "CALL10",
+    "label": "$10 Calling Credit Bonus",
+    "discount": "+$10 credit",
+    "discount_pct": null,
+    "product": "Calls",
+    "description": "$10 bonus calling credit on your next recharge — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["Mid Value At-Risk", "Low Value Active"]
+  },
+  "CALL15": {
+    "code": "CALL15",
+    "label": "$15 Calling Credit Bonus",
+    "discount": "+$15 credit",
+    "discount_pct": null,
+    "product": "Calls",
+    "description": "$15 bonus calling credit on your next recharge — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["High Value At-Risk", "Occasional High Spenders"]
+  },
+  "CALL20": {
+    "code": "CALL20",
+    "label": "$20 Calling Credit Bonus",
+    "discount": "+$20 credit",
+    "discount_pct": null,
+    "product": "Calls",
+    "description": "$20 bonus calling credit on your next recharge — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["Churned / At-Risk Users"]
+  },
+  "TALK5": {
+    "code": "TALK5",
+    "label": "5% Off Calling Offers",
+    "discount": "5% off",
+    "discount_pct": 5,
+    "product": "Calls",
+    "description": "5% off all calling offers — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["High Value Loyal"]
+  },
+  "TALK10": {
+    "code": "TALK10",
+    "label": "10% Off Calling Offers",
+    "discount": "10% off",
+    "discount_pct": 10,
+    "product": "Calls",
+    "description": "10% off all calling offers — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["Mid Value At-Risk"]
+  },
+  "TALK15": {
+    "code": "TALK15",
+    "label": "15% Off Calling Offers",
+    "discount": "15% off",
+    "discount_pct": 15,
+    "product": "Calls",
+    "description": "15% off all calling offers — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["High Value At-Risk", "Occasional High Spenders"]
+  },
+  "TALK20": {
+    "code": "TALK20",
+    "label": "20% Off Calling Offers",
+    "discount": "20% off",
+    "discount_pct": 20,
+    "product": "Calls",
+    "description": "20% off all calling offers — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["Churned / At-Risk Users"]
+  },
+  "LOCAL5": {
+    "code": "LOCAL5",
+    "label": "$5 Off Local Plans",
+    "discount": "$5 off",
+    "discount_pct": null,
+    "product": "Local",
+    "description": "$5 off local calling plans — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["New / Low-Value Active Users", "Low Value Active"]
+  },
+  "LOCAL10": {
+    "code": "LOCAL10",
+    "label": "$10 Off Local Plans",
+    "discount": "$10 off",
+    "discount_pct": null,
+    "product": "Local",
+    "description": "$10 off local calling plans — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["Mid Value At-Risk"]
+  },
+  "LOCAL15": {
+    "code": "LOCAL15",
+    "label": "$15 Off Local Plans",
+    "discount": "$15 off",
+    "discount_pct": null,
+    "product": "Local",
+    "description": "$15 off local calling plans — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["High Value At-Risk"]
+  },
+  "LOCAL20": {
+    "code": "LOCAL20",
+    "label": "$20 Off Local Plans",
+    "discount": "$20 off",
+    "discount_pct": null,
+    "product": "Local",
+    "description": "$20 off local calling plans — valid 7 days",
+    "expiry_days": 7,
+    "best_for": ["Churned / At-Risk Users"]
+  }
+}

@@ -137,32 +137,81 @@ Natural-language → SQL → results. Ask things like:
 Training corpus lives in `backend/scripts/train_vanna.py` (DDL, docs, ~52 Q/A
 pairs). Re-run with `--reset` after schema changes.
 
-## Project layout
+## Project layout (monorepo, four services)
 
 ```
-backend/
-  main.py               # FastAPI app (CORS, gzip middleware, lifespan)
-  models.py             # SQLAlchemy User / Campaign / etc.
-  filter_helpers.py     # build_where + aggregate_columns (membership semantics)
-  vanna_gemini.py       # Vanna adapter (ChromaDB + Gemini)
+backend/                 Dashboard Backend — FastAPI :8000
+  main.py                FastAPI app (CORS, gzip middleware, lifespan)
+  models.py              SQLAlchemy User / Campaign / CampaignRecipient
+  filter_helpers.py      build_where + aggregate_columns (membership semantics)
+  vanna_gemini.py        Vanna adapter (ChromaDB + Gemini) — Smart Query NL→SQL
   routers/
-    users.py            # /api/users/...
-    analytics.py        # /api/analytics/... (KPIs, cutoffs, breakdown)
-    segmentation.py     # /api/segmentation/... (segment cards)
-    clusters.py         # /api/clusters/... (cluster scatter, /pca)
-    campaigns.py        # /api/campaigns/...
-    query.py            # /api/query/  (Smart Query NL → SQL)
-    exports.py          # /api/exports/...
+    users.py             /api/users/...
+    analytics.py         /api/analytics/... (KPIs, cutoffs, breakdown)
+    segmentation.py      /api/segmentation/... (segment cards)
+    clusters.py          /api/clusters/... (cluster scatter, /pca)
+    campaigns.py         /api/campaigns/... (called by wa-gateway too)
+    query.py             /api/query/  (Smart Query)
+    exports.py           /api/exports/...
   scripts/
-    seed.py                          # Drop + repopulate users from CSVs
-    ingest_reactivation_scores.py    # Update reactivation_score from a CSV
-    train_vanna.py                   # Train/retrain Vanna
-  data/clustered/       # Per-product clustered CSVs (input to seed)
+    seed.py                          Drop + repopulate users from CSVs
+    ingest_reactivation_scores.py    Update reactivation_score from a CSV
+    train_vanna.py                   Train/retrain Vanna
+  data/clustered/        Per-product clustered CSVs (input to seed)
+  data/scores/           Reactivation score CSV + RF model pickle
 
-frontend/
+frontend/                Dashboard Frontend — React/Vite :5173
   src/
     pages/        Dashboard | DormantUsers | Reports | Campaigns | Settings
     components/   ClusterScatter | UserTable | GlobalFilterBar | etc.
     context/      QueryFilterContext  (global filter state, segment auto-sync)
     api.js        Axios endpoints
+
+wa-gateway/              WhatsApp Gateway — Node/Express :3000
+  server.js              Meta Cloud API webhook receiver (delivery / reply events)
+  index.js               Cron sender — polls backend every 60s for queued campaigns
+  knowledge/             Markdown knowledge base (seed for reply-ai's RAG)
+  data/conversations/    Local message logs (gitignored)
+
+reply-ai/                Reply AI — Python/FastAPI :5000
+  main.py                HTTP entry; called by wa-gateway when a user replies
+  bot.py                 Orchestrator — calls offer selector + reply generator
+  offers.py              Rule-based offer selector (NOT AI — deterministic table)
+  rag.py                 Builds ChromaDB vector index over wa-gateway/knowledge/
+  ingest.py              Re-index entry point
+  users.py               JSON-file storage for per-user chat history
+  data/offers.json       Promo code definitions
+  data/segments.json     Segment metadata
+  chroma_db/             Vector store (gitignored — rebuild via `python ingest.py`)
+
+notebooks/clustering/    Offline ML — KMeans + PCA per product
+                         (output: backend/data/clustered/*.csv)
 ```
+
+### Service interactions
+
+```
+Browser ──HTTPS──> Frontend ──HTTP──> Backend ──SQL──> Postgres
+                                        │
+                                        ├─Vanna+Gemini── Smart Query NL→SQL
+                                        │
+                                        └──── Redis (cache)
+
+wa-gateway ──HTTP──> Backend       (poll queued campaigns, post events)
+wa-gateway ──HTTPS─> Meta WA API   (send messages, receive webhooks)
+wa-gateway ──HTTP──> reply-ai      (when a user replies, get an LLM reply)
+reply-ai   ──HTTPS─> Groq          (chat reply generation)
+```
+
+The two AI sub-systems (Vanna inside Backend; Reply AI as its own service) are
+**fully independent** — different LLMs (Gemini vs Groq), different vector
+stores, different training corpora, no shared code or data.
+
+### What's automated vs manual
+
+- **Live loop:** campaign send → Meta delivery/read/reply events → Backend
+  updates `campaign_recipients.status` and aggregate `Campaign.*_count`.
+- **Manual loop:** user converts → purchase appears in Numero prod data →
+  team re-runs the clustering + reactivation notebooks → re-runs `seed.py` and
+  `ingest_reactivation_scores.py` → `users.reactivation_score` updated.
+  Closing this loop with a scheduled retrain is the primary future-work item.

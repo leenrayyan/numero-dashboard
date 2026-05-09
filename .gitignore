@@ -17,11 +17,23 @@ dist/
 .vite/
 *.log
 
-# --- Vector store (regenerated locally from train_vanna.py) ---
+# --- Vector stores (regenerated locally from train_vanna.py / ingest.py) ---
 backend/chroma_db/
+reply-ai/chroma_db/
 
-# --- Runtime logs (uvicorn / vanna_queries.jsonl) — local only ---
+# --- Runtime logs (uvicorn / vanna_queries.jsonl / wa-gateway / reply-ai) ---
 backend/logs/
+*.err
+
+# --- Runtime user data (chat history, conversation logs — PII) ---
+reply-ai/data/users/
+wa-gateway/data/conversations/
+
+# --- Archived experiments (kept locally for reference, not pushed) ---
+_archive/
+
+# --- Generated punch-list / scratch PDFs ---
+GP3_SE_Diagrams_Punchlist.pdf
 
 # --- Local development databases / caches ---
 *.sqlite

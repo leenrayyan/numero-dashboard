@@ -1,0 +1,56 @@
+{
+  "High Value Loyal": {
+    "description": "High-spending customers with strong purchase history and recent activity. The most valuable segment.",
+    "tone_notes": "Warm and appreciative. Treat them as VIPs — they've earned it. Light offer, emphasize exclusivity and loyalty rewards.",
+    "default_offers": ["CALL5", "TRAVEL5", "NUMBER5"],
+    "urgency": "low"
+  },
+  "High Value Customers": {
+    "description": "High-value customers across eSIM products. Profitable but may not be frequent buyers.",
+    "tone_notes": "Professional and value-forward. Acknowledge their spending history. Don't over-discount — they buy for quality.",
+    "default_offers": ["TRAVEL5", "NUMBER5", "CALL5"],
+    "urgency": "low"
+  },
+  "Mid Value At-Risk": {
+    "description": "Mid-tier customers who haven't purchased recently. Decent spend history but showing signs of churn.",
+    "tone_notes": "Friendly check-in tone. Express that you've missed them. Medium offer to re-engage without over-investing.",
+    "default_offers": ["CALL10", "ONLINE5", "NUMBER10"],
+    "urgency": "medium"
+  },
+  "Low Value Active": {
+    "description": "Lower-spending but still somewhat active customers. Worth retaining but not at high cost.",
+    "tone_notes": "Casual and friendly. Focus on value and ease-of-use. Light offer — don't over-invest.",
+    "default_offers": ["CALL5", "LOCAL5", "NUMBER5"],
+    "urgency": "low"
+  },
+  "High Value At-Risk": {
+    "description": "Previously high-value customers now showing strong churn signals. High priority to recover.",
+    "tone_notes": "Urgent but warm. Acknowledge the gap without being pushy. Substantial offer to overcome inertia.",
+    "default_offers": ["CALL15", "SAVEBIG", "NUMBER15"],
+    "urgency": "high"
+  },
+  "Churned / At-Risk Users": {
+    "description": "Customers who have fully or near-fully churned. Long dormancy, high discount needed to re-engage.",
+    "tone_notes": "Empathetic re-engagement. Don't be salesy — be human. Big offer to make it worth coming back.",
+    "default_offers": ["CALL20", "SAVEBIG", "NUMBER20"],
+    "urgency": "high"
+  },
+  "New / Low-Value Active Users": {
+    "description": "Newer or low-spending customers still in early stages. Potential to grow.",
+    "tone_notes": "Welcoming and educational. Help them discover products. Light offer to encourage first or second purchase.",
+    "default_offers": ["CALL5", "TRAVEL5", "NUMBER5"],
+    "urgency": "low"
+  },
+  "Occasional High Spenders": {
+    "description": "Customers who buy infrequently but spend a lot per purchase. High AOV, low frequency.",
+    "tone_notes": "Premium and exclusive tone. They respond to quality and uniqueness, not just discounts. Medium-high offer.",
+    "default_offers": ["CALL15", "NUMBER15", "SMNUMBER10"],
+    "urgency": "medium"
+  },
+  "unknown": {
+    "description": "New or unclassified user — no behavioral data yet.",
+    "tone_notes": "Friendly and discovery-focused. Ask about their use case or destination to guide them to the right product.",
+    "default_offers": [],
+    "urgency": "low"
+  }
+}

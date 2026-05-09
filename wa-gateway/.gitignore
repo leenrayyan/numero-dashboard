@@ -1,0 +1,33 @@
+# dependencies
+node_modules/
+ai-server/venv/
+ai-server/__pycache__/
+**/__pycache__/
+
+# secrets
+.env
+ai-server/.env
+
+# logs / runtime
+*.log
+*.err
+ai-server/server.log
+ai-server/server.err
+
+# vector store (rebuildable from ingest)
+ai-server/chroma_db/
+
+# editor / OS
+.DS_Store
+.vscode/
+.idea/
+
+# archived (kept locally for reference, not pushed)
+_archive/
+
+# data dumps that shouldn't be public
+data/*.csv
+data/*.xlsx
+data/*.parquet
+ai-server/data/*.csv
+ai-server/data/*.xlsx
