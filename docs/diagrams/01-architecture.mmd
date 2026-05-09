@@ -3,16 +3,16 @@
 
 flowchart TB
 
-    %% ---------- ACTORS (top) ----------
+    %% ---------- ACTORS ----------
     ANALYST(["Marketing Analyst"])
     WAUSER(["WhatsApp User"])
 
     %% ---------- DASHBOARD CLUSTER ----------
     subgraph DASH["Dashboard"]
         direction TB
-        FE["Dashboard Frontend<br/>React + Vite :5173"]
+        FE["Dashboard Frontend<br/>React + Vite :5173<br/><i>campaign builder picks offer here</i>"]
         BE["Dashboard Backend<br/>FastAPI :8000"]
-        VANNA[["Vanna NL to SQL<br/>(module inside Backend)"]]
+        VANNA[["Vanna NL to SQL<br/>module inside Backend"]]
         CHV[("ChromaDB<br/>Vanna corpus")]
         FE -->|HTTP / JSON| BE
         BE --- VANNA
@@ -24,17 +24,17 @@ flowchart TB
         direction TB
         WAG["WhatsApp Gateway<br/>Node + Express :3000"]
         RAI["Reply AI<br/>Python + FastAPI :5000"]
-        OFFER[["Rule-based offer selector<br/>(NOT AI)"]]
         CHR[("ChromaDB<br/>RAG corpus")]
+        CHAT[("Per-user chat state<br/>JSON files")]
         WAG -->|on user reply| RAI
-        RAI --- OFFER
         RAI --- CHR
+        RAI --- CHAT
     end
 
     %% ---------- DATA STORES ----------
     subgraph STORES["Shared stores (Docker Compose)"]
         direction TB
-        PG[("PostgreSQL 15 :5432<br/>users, campaigns,<br/>campaign_recipients")]
+        PG[("PostgreSQL 15 :5432<br/>users, campaigns,<br/>campaign_recipients<br/>(phone, opt-in, lifecycle)")]
         RD[("Redis 7 :6379<br/>query cache")]
     end
 
@@ -54,25 +54,24 @@ flowchart TB
     BE -->|SQL / asyncpg| PG
     BE -->|RESP| RD
 
-    %% ---------- WAG → BACKEND (inner feedback loop) ----------
-    WAG -->|HTTP poll 60s for queued campaigns<br/>+ POST delivery / read / reply events| BE
+    %% ---------- WAG ↔ BACKEND ----------
+    WAG -->|poll queued campaigns 60s<br/>+ POST delivery / read / reply events| BE
 
     %% ---------- SERVICES → EXTERNALS ----------
     VANNA -->|HTTPS| GEMINI
     RAI   -->|HTTPS| GROQ
-    WAG   <-->|HTTPS / webhook| META
+    WAG   -->|send message<br/>HTTPS| META
+    META  -.->|delivery / reply<br/>webhook| WAG
 
     %% ---------- STYLES ----------
     classDef actor   fill:#fef3c7,stroke:#a16207,stroke-width:2px
     classDef svc     fill:#dbeafe,stroke:#1d4ed8,stroke-width:2px
     classDef aimod   fill:#ede9fe,stroke:#6d28d9,stroke-width:2px
-    classDef rule    fill:#f1f5f9,stroke:#64748b,stroke-width:2px
     classDef store   fill:#dcfce7,stroke:#15803d,stroke-width:2px
     classDef ext     fill:#fce7f3,stroke:#be185d,stroke-width:2px,stroke-dasharray: 6 4
 
     class ANALYST,WAUSER actor
     class FE,BE,WAG,RAI svc
     class VANNA aimod
-    class OFFER rule
-    class PG,RD,CHV,CHR store
+    class PG,RD,CHV,CHR,CHAT store
     class GEMINI,GROQ,META ext

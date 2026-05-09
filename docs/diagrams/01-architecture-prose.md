@@ -130,14 +130,20 @@ then executed against PostgreSQL and the result returned to the dashboard.
 **Reply AI (customer-facing).** A standalone Python service (`reply-ai/`,
 port 5000) invoked by the WhatsApp Gateway whenever a dormant user replies
 to a campaign. Its `rag.py` module indexes Numero's offer catalogue and
-policy documents (`wa-gateway/knowledge/`) into its own ChromaDB instance,
-and `bot.py` orchestrates each turn: it retrieves the relevant context,
-prompts the Groq LLM to generate a contextually-appropriate reply, and
-returns it to the gateway for delivery via the Meta API. A complementary
-**rule-based offer selector** (`offers.py`) — explicitly *not* AI, but a
-small deterministic table mapping (segment, recency, product) tuples to
-hardcoded promo codes — is consulted alongside the LLM to decide which
-offer should be embedded in each reply.
+policy documents (`wa-gateway/knowledge/`) into its own ChromaDB instance;
+`bot.py` orchestrates each turn by retrieving relevant context, prompting
+the Groq LLM to generate a reply, and returning it to the gateway for
+delivery. Per-user conversation history is stored as one JSON file per
+user under `reply-ai/data/users/`, keeping each session self-contained
+without requiring an additional database connection.
+
+Offer selection itself happens earlier, at **campaign build time** in the
+dashboard's Campaign Builder page, where the `matchOffer()` helper maps
+the chosen audience (segment, product, recency) to a promo code which
+the analyst can then accept or override. The chosen code is persisted on
+the `Campaign` row and reused at send time and in any subsequent reply,
+so the offer the user sees is decided once and remains consistent across
+the campaign and the conversation.
 
 ### 4.1.7 WhatsApp Delivery Layer
 
