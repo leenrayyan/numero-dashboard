@@ -1,12 +1,59 @@
 require('dotenv').config();
 const express = require('express');
 const axios = require('axios');
+const crypto = require('crypto');
 
 const app = express();
-app.use(express.json());
+
+// Capture the raw request body during JSON parsing so we can verify Meta's
+// HMAC signature on inbound webhooks. The signature is computed on the exact
+// bytes Meta sent — any reformatting (whitespace, key order) would break it,
+// so we cannot re-serialise from req.body.
+app.use(express.json({
+  verify: (req, _res, buf) => { req.rawBody = buf; }
+}));
 
 const WHATSAPP_API = `https://graph.facebook.com/v18.0/${process.env.PHONE_NUMBER_ID}`;
 const AI_SERVER = process.env.AI_SERVER_URL || 'http://localhost:5000';
+const APP_SECRET = process.env.WHATSAPP_APP_SECRET;
+
+if (!APP_SECRET) {
+  console.error('❌ WHATSAPP_APP_SECRET missing — webhook signature verification disabled. Set it in .env before exposing this service publicly.');
+}
+
+// ─── META WEBHOOK SIGNATURE VERIFICATION ──────────────────────────────────────
+// Meta signs every webhook POST with HMAC-SHA256(rawBody, APP_SECRET) and sends
+// the result in the `x-hub-signature-256` header as `sha256=<hex>`. We recompute
+// it here and compare with a constant-time check so anyone POSTing to /webhook
+// without knowing the secret is rejected.
+function verifyMetaSignature(req, res, next) {
+  if (!APP_SECRET) {
+    // No secret configured — deny by default rather than silently accepting
+    // (fail-closed). Flip to next() if you knowingly want to skip in local dev.
+    return res.status(401).send('signature verification not configured');
+  }
+
+  const header = req.get('x-hub-signature-256');
+  if (!header || !header.startsWith('sha256=')) {
+    return res.status(401).send('missing or malformed signature header');
+  }
+
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', APP_SECRET)
+    .update(req.rawBody || Buffer.from(''))
+    .digest('hex');
+
+  // timingSafeEqual rejects buffers of different lengths up-front, and prevents
+  // an attacker from learning the correct prefix byte-by-byte via response time.
+  const a = Buffer.from(header);
+  const b = Buffer.from(expected);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    console.warn('🚫 Webhook signature mismatch — rejecting request');
+    return res.status(401).send('invalid signature');
+  }
+
+  next();
+}
 
 // ─── WEBHOOK VERIFICATION ─────────────────────────────────────────────────────
 app.get('/webhook', (req, res) => {
@@ -23,7 +70,7 @@ app.get('/webhook', (req, res) => {
 });
 
 // ─── INCOMING MESSAGES ────────────────────────────────────────────────────────
-app.post('/webhook', async (req, res) => {
+app.post('/webhook', verifyMetaSignature, async (req, res) => {
   res.sendStatus(200);
 
   try {
