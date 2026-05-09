@@ -44,7 +44,11 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DEFAULT_CSV = Path.home() / "Downloads" / "dormant_customers_scored.csv"
+# Default location — the CSV produced by the team's notebook is committed
+# to the repo at backend/data/scores/ so a fresh checkout can run the ingest
+# without hunting for the file. Override with a CLI arg when re-ingesting
+# a fresh export.
+DEFAULT_CSV = Path(__file__).resolve().parent.parent / "data" / "scores" / "dormant_customers_scored.csv"
 BATCH_SIZE = 5_000
 
 

@@ -35,8 +35,11 @@ cd backend && python scripts/seed.py
 # 6. Train Vanna for Smart Query
 cd backend && python scripts/train_vanna.py --reset
 
-# 7. (Optional) Ingest reactivation scores from the team's notebook output
-cd backend && python scripts/ingest_reactivation_scores.py ~/Downloads/dormant_customers_scored.csv
+# 7. Ingest reactivation scores
+#    The CSV produced by the team's notebook is committed at
+#    backend/data/scores/dormant_customers_scored.csv — running the script
+#    with no args picks it up automatically.
+cd backend && python scripts/ingest_reactivation_scores.py
 ```
 
 ## Running locally
@@ -68,14 +71,21 @@ See `backend/filter_helpers.py:build_where()` for the implementation.
 
 ## Reactivation model
 
-The team retrains in
-`notebooks/cluster-reactivation-pipelines-v2.ipynb` (or wherever they keep it)
-and exports `dormant_customers_scored.csv` and `reactivation_model.pkl`. To
-update the dashboard with new scores:
+The team retrains in `cluster-reactivation-pipelines-v2.ipynb` and exports
+two artifacts:
+
+- `dormant_customers_scored.csv` — per-user reactivation probabilities
+- `reactivation_model.pkl` — the trained Random Forest, in case you ever
+  want to re-score from new transaction data without retraining
+
+Both live in the repo at **`backend/data/scores/`** so a fresh checkout
+already has everything needed. To pick up a NEW retraining run, drop the
+new CSV in that folder (or anywhere else) and run:
 
 ```bash
 cd backend
-python scripts/ingest_reactivation_scores.py path/to/dormant_customers_scored.csv
+python scripts/ingest_reactivation_scores.py                          # default path
+python scripts/ingest_reactivation_scores.py /path/to/some/other.csv  # override
 ```
 
 The script:
