@@ -55,7 +55,7 @@ def run():
     engine = create_engine(DATABASE_URL, echo=False)
     with engine.connect() as conn:
         for sql in MIGRATIONS:
-            print(f"  → {sql[:80]}...")
+            print(f"  -> {sql[:80].strip()}...")
             conn.execute(text(sql))
         conn.commit()
 

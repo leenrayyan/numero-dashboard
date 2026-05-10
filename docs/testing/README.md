@@ -13,6 +13,7 @@ evidence.
 | #  | Date         | Component        | What we tested                                    | Result | File |
 |----|--------------|------------------|---------------------------------------------------|--------|------|
 | 01 | 2026-05-10   | wa-gateway       | Meta webhook HMAC-SHA256 signature verification    | ✅ PASS | [01-webhook-signature.md](./01-webhook-signature.md) |
+| 02 | 2026-05-10   | PostgreSQL       | FK constraints on `campaign_recipients` (rejection + cascade delete) | ✅ PASS | [02-fk-constraints.md](./02-fk-constraints.md) |
 
 <!-- New entries: append a row above and add a corresponding markdown file. -->
 
