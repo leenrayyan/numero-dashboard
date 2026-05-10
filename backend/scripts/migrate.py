@@ -22,6 +22,33 @@ MIGRATIONS = [
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS last_campaign_at TIMESTAMP",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS campaigns_sent INTEGER DEFAULT 0",
     "ALTER TABLE users ADD COLUMN IF NOT EXISTS reactivation_score FLOAT",
+
+    # Foreign-key constraints on campaign_recipients. Postgres has no
+    # 'ADD CONSTRAINT IF NOT EXISTS', so wrap each in a DO block that
+    # silently skips when the constraint is already present (makes the
+    # migration safe to re-run).
+    """
+    DO $$
+    BEGIN
+        BEGIN
+            ALTER TABLE campaign_recipients
+            ADD CONSTRAINT campaign_recipients_campaign_id_fkey
+            FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE;
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END;
+    END $$;
+    """,
+    """
+    DO $$
+    BEGIN
+        BEGIN
+            ALTER TABLE campaign_recipients
+            ADD CONSTRAINT campaign_recipients_user_id_fkey
+            FOREIGN KEY (user_id) REFERENCES users(id_client);
+        EXCEPTION WHEN duplicate_object THEN NULL;
+        END;
+    END $$;
+    """,
 ]
 
 def run():

@@ -2,7 +2,7 @@
 SQLAlchemy models — one row per user, aggregated from 3 product-type CSVs.
 Primary product = where user spent most. Cluster from that product.
 """
-from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, Text, JSON, BigInteger
+from sqlalchemy import Column, String, Float, Integer, Boolean, DateTime, Text, JSON, BigInteger, ForeignKey
 from sqlalchemy.sql import func
 from database import Base
 
@@ -134,8 +134,11 @@ class CampaignRecipient(Base):
     __tablename__ = "campaign_recipients"
 
     id            = Column(Integer, primary_key=True, autoincrement=True)
-    campaign_id   = Column(Integer, nullable=False, index=True)
-    user_id       = Column(BigInteger, nullable=False, index=True)   # id_client
+    # FKs are enforced at the DB level. CASCADE on campaign_id so deleting a
+    # test campaign cleans up its recipients; default RESTRICT on user_id
+    # because customers are not deleted (their lifecycle history must survive).
+    campaign_id   = Column(Integer,    ForeignKey("campaigns.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id       = Column(BigInteger, ForeignKey("users.id_client"),                  nullable=False, index=True)   # id_client
     phone_number  = Column(Text, nullable=True)
     wa_message_id = Column(Text, nullable=True, index=True)          # Meta's wamid for delivery tracking
 

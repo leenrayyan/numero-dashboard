@@ -60,17 +60,27 @@ The schema contains four tables grouped into two functional areas:
 
 ### Relationships and indexes
 
-Two foreign-key relationships connect the campaign tables:
+Two foreign-key relationships connect the campaign tables, **enforced
+at the database level** by Postgres `FOREIGN KEY` constraints:
 
-* `campaign_recipients.campaign_id → campaigns.id` (N : 1)
-* `campaign_recipients.user_id     → users.id_client` (N : 1)
+* `campaign_recipients.campaign_id → campaigns.id`  (N : 1, `ON DELETE CASCADE`)
+* `campaign_recipients.user_id     → users.id_client`  (N : 1, default `RESTRICT`)
 
-Both FK columns are indexed. Within `users`, three columns also carry
-indexes because they are the hot filter dimensions for the dashboard:
-`primary_product_group`, `cluster_id`, `segment`, plus two more added
-when the multi-channel filter dimensions were introduced (`platform`,
-`language`). `wa_message_id` on `campaign_recipients` is indexed
-because Meta webhooks identify recipients by message id, not user id.
+The cascade on `campaign_id` lets us delete a test or aborted campaign
+without leaving orphaned recipient rows. The default `RESTRICT` on
+`user_id` is intentional: customers are never deleted, so the
+constraint also serves as a guard against accidentally dropping a
+`users` row that still has campaign history attached to it.
+
+Postgres does **not** automatically create an index on the referencing
+column when a foreign key is declared, so both `campaign_id` and
+`user_id` carry an explicit `index=True` in the SQLAlchemy model
+(shown as `FK·IDX` in Figure X). Within `users`, five columns also
+carry indexes because they are the hot filter dimensions for the
+dashboard: `primary_product_group`, `cluster_id`, `segment`,
+`platform`, and `language`. `wa_message_id` on `campaign_recipients`
+is indexed because Meta webhooks identify recipients by message id,
+not user id.
 
 ### Schema-vs-code gap (honest)
 
