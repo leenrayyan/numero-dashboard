@@ -63,3 +63,6 @@ Thumbs.db
 # --- Misc ---
 *.parquet
 
+# --- Diagrams are submitted inside the report PDF, not the repo ---
+docs/diagrams/
+
