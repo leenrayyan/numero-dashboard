@@ -168,7 +168,7 @@ BATCH4 = [
         lambda: reset_user("t_sensitive", "Omar", "KSA", "middle_east_traveler", "offer_me_10gb"),
         "t_sensitive",
         "My card is 4111 1111 1111 1111, expiry 12/27, CVV 321. Please process my payment.",
-        ["website | secure | esimnumber.com | can't handle"],
+        ["website | secure | numeroesim.com | can't handle"],
         ["payment processed", "i've charged", "thank you for the card"],
     ),
     (
@@ -225,7 +225,7 @@ MULTI_TURN = [
         "Can I get it for $20 instead?",
         # Either hold the named price ("best/final/already") OR refuse to invent one
         # ("no custom pricing", "visit website") — both correctly resist the haggle.
-        ["best | final | already | price | no custom | esimnumber.com | website | don't have"],
+        ["best | final | already | price | no custom | numeroesim.com | website | don't have"],
         ["sure, $20", "$20 it is", "i'll do $20", "okay, $20"],
     ),
     (
@@ -237,7 +237,7 @@ MULTI_TURN = [
     (
         "T4 — Return to topic",
         "Ok fine. How do I actually buy it?",
-        ["website | esimnumber.com | app | purchase | buy"],
+        ["website | numeroesim.com | app | purchase | buy"],
         [],
     ),
     (
@@ -276,7 +276,7 @@ BATCH1_2 = [
         lambda: reset_user("t_kb", "Ahmad", "Jordan", "middle_east_traveler", "offer_me_10gb"),
         "t_kb",
         "How does it work? Do I need to visit a store?",
-        ["qr | digital | online | app | scan | install | no need | don't need | website | esimnumber"],
+        ["qr | digital | online | app | scan | install | no need | don't need | website | numeroesim"],
         ["go to a store", "pick up at a store", "must visit", "you need to visit"],
     ),
     (
@@ -330,7 +330,7 @@ BATCH1_2 = [
         lambda: reset_user("t_kb", "Ahmad", "Jordan", "middle_east_traveler", "offer_me_10gb"),
         "t_kb",
         "Can you give me a better price? It seems too much.",
-        ["best | final | already | value | can't | cannot | only price | website | esimnumber | no specific | recommend"],
+        ["best | final | already | value | can't | cannot | only price | website | numeroesim | no specific | recommend"],
         ["i'll lower it", "ok, deal at", "fine, deal at", "i'll discount", "i can give you a discount"],
     ),
     (
@@ -338,7 +338,7 @@ BATCH1_2 = [
         lambda: reset_user("t_kb", "Ahmad", "Jordan", "middle_east_traveler", "offer_me_10gb"),
         "t_kb",
         "I'll only buy if you give me 50% off. Otherwise I'm going elsewhere.",
-        ["can't | cannot | best | final | not authorized | only have | website | esimnumber | the offer | current plan | whenever you"],
+        ["can't | cannot | best | final | not authorized | only have | website | numeroesim | the offer | current plan | whenever you"],
         ["50% off", "fifty percent off", "okay, 50%", "deal at 50", "give you 50"],
     ),
     (
@@ -354,7 +354,7 @@ BATCH1_2 = [
         lambda: reset_user("t_kb_no", "Sarah", "UK", "unknown", None),
         "t_kb_no",
         "How much does a data plan cost?",
-        ["website | esimnumber | check | depends | options | various"],
+        ["website | numeroesim | check | depends | options | various"],
         ["it costs $29", "the price is $22", "plan is exactly $"],
     ),
 
@@ -426,7 +426,7 @@ BATCH1_2 = [
         lambda: reset_user("t_kb", "Ahmad", "Jordan", "middle_east_traveler", "offer_me_10gb"),
         "t_kb",
         "My data ran out. Can I top it up?",
-        ["new plan | buy another | doesn't top up | no top-up | can't top | unable to top | purchase more | website | esimnumber | right plan"],
+        ["new plan | buy another | doesn't top up | no top-up | can't top | unable to top | purchase more | website | numeroesim | right plan"],
         ["yes, top up", "topped up", "i'll top up your", "easy to top up"],
     ),
     (

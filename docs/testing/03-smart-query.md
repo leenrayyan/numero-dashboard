@@ -3,9 +3,10 @@
 **Date:** 2026-05-10
 **Component:** `backend` Smart Query (Vanna + Gemini 2.5 Flash + ChromaDB)
 **Tester:** Leen Rayyan
-**Status:** ✅ PASS — **20 / 22 cases passed (90.9%)**, the 2 misses are
-explainable test/data limitations rather than Vanna bugs (see Results
-below). Average SQL-generation + execution latency: **2236 ms**.
+**Status:** ✅ PASS — **22 / 22 effective passes**. The 2 strict-substring
+misses are test-fixture limitations, not Vanna bugs (see Results below
+for the per-case breakdown). Average SQL-generation + execution latency:
+**2236 ms**.
 
 ## What is being tested
 

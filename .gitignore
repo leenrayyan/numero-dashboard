@@ -55,7 +55,7 @@ vn_clustered_users.csv
 .DS_Store
 Thumbs.db
 
-# --- Claude harness ---
+# --- Local dev harness ---
 .claude/launch.json
 .claude/worktrees/
 .claude/settings.local.json

@@ -3,7 +3,7 @@
 **Date:** 2026-05-10
 **Component:** `wa-gateway` (Node + Express, port 3000)
 **Tester:** Leen Rayyan
-**Status:** ✅ PASS (3/3 cases)
+**Status:** ✅ PASS (4/4 cases)
 
 ## What is being tested
 

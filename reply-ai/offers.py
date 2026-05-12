@@ -69,7 +69,7 @@ def get_offer_for_user(segment: str, product_group: str, recency_days: int) -> d
 
 def format_offer(offer: dict | None) -> str:
     if not offer:
-        return "No specific offer assigned. Direct user to www.esimnumber.com and help them find the right plan."
+        return "No specific offer assigned. Direct user to www.numeroesim.com and help them find the right plan."
     lines = [
         f"Promo Code: {offer['code']}",
         f"Offer: {offer['label']} — {offer['discount']}",

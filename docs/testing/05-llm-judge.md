@@ -162,9 +162,9 @@ findings.
 ## Limitations honestly stated
 
 * **Single judge model.** Gemini 2.5 Flash. A more rigorous protocol
-  would run the same rubric through 2-3 different judges (Claude /
-  GPT-4 / Gemini) and require majority agreement before marking a case
-  pass. Out of scope here; noted as future work.
+  would run the same rubric through 2-3 different judges from
+  different vendors and require majority agreement before marking a
+  case pass. Out of scope here; noted as future work.
 * **Single run per case.** Temperature is 0, but model upgrades or
   endpoint changes could shift scores. The committed JSON in
   `llm_judge_results.json` is a point-in-time snapshot, not a

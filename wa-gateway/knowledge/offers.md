@@ -8,7 +8,7 @@ These are the offer templates used in campaigns. Each user is assigned one speci
 - If no offer is assigned, direct the user to the website and help them find the right plan
 
 ## Default Offer (if no offer assigned in user profile)
-- Direct user to website: www.esimnumber.com
+- Direct user to website: www.numeroesim.com
 - Mention plans start from competitive prices depending on destination
 - Ask about their destination or use case to guide them to the right product
 
