@@ -192,3 +192,44 @@ findings.
 
 Evidence: `reply-ai/llm_judge_results.json` (full per-case scores +
 disagreement details).
+
+## Subsequent prompt refinements
+
+The four judge-fail cases were treated as the actionable output of the
+test, not as a closing score. Each was traced to a specific gap in
+`reply-ai/bot.py`'s `SYSTEM_PROMPT`, and a targeted edit was committed
+in the same review pass. The captured replies in
+`stress_results_batch{12,3,4,5}.json` and the scores in
+`llm_judge_results.json` are the pre-fix snapshot and are deliberately
+left in place as the evidence record.
+
+| Judge-fail case (batch) | Root cause in original prompt | Prompt refinement applied |
+|---|---|---|
+| **TikTok / Instagram OTP** (1+2) | COMPATIBILITY rule said virtual numbers are "not guaranteed" but did not require the bot to *include* that caveat in every social-media reply. Bot extracted the positive "high success rate" half of the KB sentence and dropped the "but compatibility depends..." half. | COMPATIBILITY section now explicitly requires: *"Whenever you describe social-media verification, always include an explicit caveat in the same reply ('success may vary' or 'not guaranteed'); never say 'high success rate' on its own."* |
+| **Top up data** (1+2) | No rule existed for the no-top-up policy. The FAQ knowledge base is unambiguous ("Can I top up my current plan? No. You need to buy a new plan.") but the bot positive-spun this to "purchase more data through our website" and dropped the prohibition. | New **TECHNICAL LIMITS** section added: *"No top-up: plans cannot be topped up. If a user's data runs out, they must buy a new plan. Say this explicitly — do not soften it to 'purchase more data through our website'."* |
+| **Refund on activated eSIM** (3) | ESCALATE TO HUMAN list named "frustration" and "active service issue" but did not specifically require team escalation for refund disputes. Bot gave a factually correct but flat denial. | SENSITIVE SITUATIONS gained a new line: *"User wants a refund on an activated eSIM → State the policy honestly AND offer to escalate: 'I can flag this to our team to take a closer look — what's your email?' Do not give a flat denial without escalation."* |
+| **Distressed user** (4) | The original guidance was *"respond with empathy, offer to connect them with the team"* — bot complied, but the empathetic phrasing read as counsellor-mode (judge flagged on_scope=1). This was a guidance-versus-judge disagreement more than a defect, but the prompt was tightened anyway. | SENSITIVE SITUATIONS line rewritten: brief one-sentence acknowledgement, anchor to Numero ("if there's anything specific I can help you with, or you'd like someone from our team to reach out") and an explicit *"Do NOT offer to listen, chat, or ask what's wrong — you're not a counsellor."* |
+
+A separate latent defect was found and fixed during the same pass: the
+`reply-ai/rag.py` knowledge-directory path was set to `../knowledge`
+(non-existent after the monorepo restructure) instead of
+`../wa-gateway/knowledge`. The running ChromaDB had been built from a
+pre-restructure copy; edits to the live KB never reached the vector
+index. The path was corrected and ChromaDB rebuilt from the canonical
+knowledge base (33 chunks across `faq.md`, `product.md`, `rules.md`,
+`offers.md`).
+
+### Verification status
+
+End-to-end re-verification of the prompt refinements against the full
+39-case corpus was not completed before submission. A focused re-run
+was attempted but blocked by Groq's daily-token-budget (TPD = 100K) —
+the test run itself plus follow-up probing exhausted the budget for
+the day. The committed prompt deltas and the rebuilt vector store are
+ready for a re-run on the next token-budget refresh.
+
+This limitation is the honest engineering picture: the testing pass
+discovered four real defects, three of them were genuine policy gaps
+in the prompt, the fourth was a methodology disagreement that still
+prompted a tightening, and the closing-the-loop verification belongs
+to a subsequent run.

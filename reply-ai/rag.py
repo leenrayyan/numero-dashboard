@@ -8,7 +8,7 @@ import shutil
 
 load_dotenv()
 
-KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), '..', 'knowledge')
+KNOWLEDGE_DIR = os.path.join(os.path.dirname(__file__), '..', 'wa-gateway', 'knowledge')
 CHROMA_DIR = os.path.join(os.path.dirname(__file__), 'chroma_db')
 
 def _embeddings():
