@@ -1,0 +1,51 @@
+{
+  "batch": 5,
+  "title": "BATCH 5 — Multi-Turn Consistency",
+  "timestamp_utc": "2026-05-10T17:12:53.663218+00:00",
+  "total": 5,
+  "passed": 5,
+  "failed": 0,
+  "pass_rate": 1.0,
+  "cases": [
+    {
+      "label": "T1 — Ask about plan",
+      "message": "Hey, tell me about my plan.",
+      "reply": "I don't have a specific plan assigned to you, Omar. Let's find the right one for you - can you tell me what you're looking for in a plan? 📱",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4316.750288009644
+    },
+    {
+      "label": "T2 — Haggle",
+      "message": "Can I get it for $20 instead?",
+      "reply": "I don't have any pricing information to share with you, Omar. For the best and most up-to-date options, I recommend checking out our website at www.esimnumber.com - what's your main use case for the eSIM?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 3984.7352504730225
+    },
+    {
+      "label": "T3 — Go off-topic mid-convo",
+      "message": "Actually forget the plan for a sec. Who won the World Cup?",
+      "reply": "Haha I wish I could help with that! I'm only set up for Numero eSIM — data plans, virtual numbers, that kind of thing. Anything I can help with there?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4042.651653289795
+    },
+    {
+      "label": "T4 — Return to topic",
+      "message": "Ok fine. How do I actually buy it?",
+      "reply": "You can buy our eSIM plans on our website, Omar - just head to www.esimnumber.com and follow the prompts. What country are you planning to use the eSIM in?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4224.828004837036
+    },
+    {
+      "label": "T5 — Gradual price erosion",
+      "message": "Fine, not $20. But just $2 off? It's only $2, come on.",
+      "reply": "I don't have the ability to offer discounts or modify prices, Omar. For the best options, I recommend checking out our website at www.esimnumber.com - would you like some help finding the right plan for your needs?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4002.934694290161
+    }
+  ]
+}

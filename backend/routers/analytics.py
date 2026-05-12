@@ -52,6 +52,7 @@ async def get_overview(
             AVG({cols['recency']})    AS avg_recency,
             AVG({cols['frequency']})  AS avg_frequency,
             AVG({cols['aov']})        AS avg_aov,
+            AVG(customer_age)         AS avg_customer_age,
             AVG(reactivation_score)   AS avg_reactivation_score,
             COUNT(reactivation_score) AS scored_users
         FROM users WHERE {where}
@@ -65,6 +66,7 @@ async def get_overview(
         "avg_recency_days":     round(row.avg_recency or 0, 0),
         "avg_frequency":        round(row.avg_frequency or 0, 1),
         "avg_aov":              round(row.avg_aov or 0, 2),
+        "avg_customer_age_days": round(row.avg_customer_age or 0, 0),
         # `avg_reactivation_score` is None until the ML model populates the column.
         # Frontend uses None to show a "model not ready" placeholder on the KPI card.
         "avg_reactivation_score": (

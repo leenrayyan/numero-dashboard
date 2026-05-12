@@ -1,0 +1,130 @@
+<mxfile host="app.diagrams.net" agent="hand-authored">
+  <diagram name="Activity-CampaignLifecycle" id="act_campaign_lifecycle">
+    <mxGraphModel dx="1066" dy="523" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- START -->
+        <mxCell id="start" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="394" y="40" width="20" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Activity 1: Configure Campaign -->
+        <mxCell id="a1" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;Analyst Configures Campaign Filters &amp;amp; Template&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D4E1F5;align=center;" vertex="1" parent="1">
+          <mxGeometry x="334" y="90" width="140" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Activity 2: Build Recipient List -->
+        <mxCell id="a2" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;Backend Builds Recipient List&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D4E1F5;align=center;" vertex="1" parent="1">
+          <mxGeometry x="334" y="160" width="140" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Activity 3: Forward to wa-gateway -->
+        <mxCell id="a3" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;Forward Recipients &amp;amp; Template to wa-gateway&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D4E1F5;align=center;" vertex="1" parent="1">
+          <mxGeometry x="334" y="230" width="140" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Activity 4: Send via WhatsApp API -->
+        <mxCell id="a4" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;Send Messages via WhatsApp Cloud API&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D4E1F5;align=center;" vertex="1" parent="1">
+          <mxGeometry x="334" y="300" width="140" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Activity 5: Customer Receives -->
+        <mxCell id="a5" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;Customer Receives Message (status = sent)&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D4E1F5;align=center;" vertex="1" parent="1">
+          <mxGeometry x="334" y="370" width="140" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Activity 6: Receive Webhook -->
+        <mxCell id="a6" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;Receive Status Webhook from Meta&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D4E1F5;align=center;" vertex="1" parent="1">
+          <mxGeometry x="334" y="440" width="140" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Decision: Valid Signature? -->
+        <mxCell id="d1" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;Valid HMAC&lt;br&gt;Signature?&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;fillColor=#D5E8D4;align=center;" vertex="1" parent="1">
+          <mxGeometry x="349" y="510" width="110" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- NO branch: Reject Webhook -->
+        <mxCell id="a_reject" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;Reject Webhook&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D4E1F5;align=center;" vertex="1" parent="1">
+          <mxGeometry x="560" y="530" width="114" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- NO branch: End -->
+        <mxCell id="end_reject" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="607" y="600" width="20" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- YES branch: Update Recipient Status -->
+        <mxCell id="a7" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;Update campaign_recipients Status&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D4E1F5;align=center;" vertex="1" parent="1">
+          <mxGeometry x="334" y="620" width="140" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Activity 8: Refresh Dashboard Funnel -->
+        <mxCell id="a8" value="&lt;font style=&quot;font-size: 10px;&quot;&gt;Refresh Dashboard Funnel Counts&lt;/font&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D4E1F5;align=center;" vertex="1" parent="1">
+          <mxGeometry x="334" y="690" width="140" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- END -->
+        <mxCell id="end" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#000000;" vertex="1" parent="1">
+          <mxGeometry x="394" y="760" width="20" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ============== EDGES ============== -->
+        <mxCell id="e_start_a1" edge="1" parent="1" source="start" target="a1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a1_a2" edge="1" parent="1" source="a1" target="a2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a2_a3" edge="1" parent="1" source="a2" target="a3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a3_a4" edge="1" parent="1" source="a3" target="a4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a4_a5" edge="1" parent="1" source="a4" target="a5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a5_a6" edge="1" parent="1" source="a5" target="a6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a6_d1" edge="1" parent="1" source="a6" target="d1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- YES branch -->
+        <mxCell id="e_d1_a7" edge="1" parent="1" source="d1" target="a7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_yes" value="YES" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="e_d1_a7">
+          <mxGeometry relative="1" x="-0.3" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <!-- NO branch -->
+        <mxCell id="e_d1_reject" edge="1" parent="1" source="d1" target="a_reject" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="lbl_no" value="NO" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];" vertex="1" connectable="0" parent="e_d1_reject">
+          <mxGeometry relative="1" x="-0.2" y="-1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="e_reject_end" edge="1" parent="1" source="a_reject" target="end_reject" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_a7_a8" edge="1" parent="1" source="a7" target="a8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a8_end" edge="1" parent="1" source="a8" target="end" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

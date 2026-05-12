@@ -48,21 +48,17 @@ const OFFERS = [
 function matchOffer(segment, productGroup, recencyMin) {
   const TIER_MAP = {
     // Tier 1 — top-of-tier loyalists, light incentive needed
-    "Calls - High-Value Power Users":                          1,
-    "eSIM - High-Value Global Power Users":                    1,
-    "Virtual - High-Value Power Users":                        1,
-    "Virtual - Loyal Infrequent Buyers":                       1,
-    // Tier 2 — mid-value, moderate incentive
-    "Calls - Active Offer-Driven Customers":                   2,
-    "eSIM - Local Data Users":                                 2,
-    "Virtual - Low-Value Single-Product Users (Local Plan)":   2,
-    "Virtual - EU Bundle Focused Customers":                   2,
-    // Tier 3 — at-risk, stronger incentive
-    "Calls - At-Risk Customers":                               3,
-    "eSIM - Data-Only Minimal Users":                          3,
-    // Tier 4 — churned / one-time, heaviest reactivation push
-    "Virtual - Churned Low-Value Users":                       4,
-    "Calls - One-Time Customers":                              4,
+    "Calls - Regular Calling Offer Users":                     1,
+    "eSIM - High-Value Bundle Subscribers":                    1,
+    "Virtual - High-Spend Power Users":                        1,
+    // Tier 2 — mid-value upsell candidates, moderate incentive
+    "eSIM - High-Velocity Light Spenders":                     2,
+    "Virtual - Mid-Tier Phone Plan Holders":                   2,
+    // Tier 3 — at-risk / dormant within a product, stronger incentive
+    "eSIM - Dormant Local Data Users":                         3,
+    // Tier 4 — low-value casual buyers, heaviest reactivation push
+    "Calls - Infrequent Casual Users":                         4,
+    "Virtual - Light Occasional Users":                        4,
   };
   const baseTier = TIER_MAP[segment] ?? 2;
   let tier = baseTier;

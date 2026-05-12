@@ -8,24 +8,20 @@ from filter_helpers import build_where, aggregate_columns
 router = APIRouter()
 
 # Numero-brand palette — kept in sync with frontend/src/constants/colors.js.
-# 12 segments across Calls / eSIM / Virtual. Picked to maximise pairwise hue
-# distinctness so adjacent legend pills read as separate colours.
+# 8 segments across Calls / eSIM / Virtual (v3 model). Picked to maximise
+# pairwise hue distinctness so adjacent legend pills read as separate colours.
 SEGMENT_COLORS = {
-    # Calls (4)
-    "Calls - High-Value Power Users":                          "#B0456E",  # brand rose
-    "Calls - Active Offer-Driven Customers":                   "#D8896B",  # coral
-    "Calls - At-Risk Customers":                               "#E8B945",  # mustard amber (warning-tier)
-    "Calls - One-Time Customers":                              "#A0A0A0",  # neutral grey
+    # Calls (2)
+    "Calls - Regular Calling Offer Users":                     "#B0456E",  # brand rose
+    "Calls - Infrequent Casual Users":                         "#E8B945",  # mustard amber
     # eSIM (3)
-    "eSIM - High-Value Global Power Users":                    "#2A7FB8",  # brand blue
-    "eSIM - Local Data Users":                                 "#3D9DB0",  # turquoise
-    "eSIM - Data-Only Minimal Users":                          "#6B7CC8",  # periwinkle
-    # Virtual (5)
-    "Virtual - High-Value Power Users":                        "#5B3A9E",  # brand deep purple
-    "Virtual - Loyal Infrequent Buyers":                       "#4FA88C",  # brand sage green
-    "Virtual - Churned Low-Value Users":                       "#9B5DB8",  # plum
-    "Virtual - Low-Value Single-Product Users (Local Plan)":   "#C8825A",  # burnt orange
-    "Virtual - EU Bundle Focused Customers":                   "#DA5C8E",  # bright magenta
+    "eSIM - High-Value Bundle Subscribers":                    "#2A7FB8",  # brand blue
+    "eSIM - High-Velocity Light Spenders":                     "#3D9DB0",  # turquoise
+    "eSIM - Dormant Local Data Users":                         "#6B7CC8",  # periwinkle
+    # Virtual (3)
+    "Virtual - High-Spend Power Users":                        "#5B3A9E",  # brand deep purple
+    "Virtual - Mid-Tier Phone Plan Holders":                   "#4FA88C",  # brand sage green
+    "Virtual - Light Occasional Users":                        "#C8825A",  # burnt orange
 }
 
 

@@ -1,0 +1,110 @@
+{
+  "passed": true,
+  "failures": [],
+  "elapsed_seconds": 16.66,
+  "artifacts": {
+    "campaign_id": 11,
+    "final_state": {
+      "sent_count": 3,
+      "delivered_count": 3,
+      "read_count": 2,
+      "replied_count": 1,
+      "converted_count": 0
+    },
+    "recipient_status_counts": {
+      "delivered": 1,
+      "read": 1,
+      "replied": 1
+    },
+    "cleanup_campaign_deletes": 1
+  },
+  "log": [
+    {
+      "step": "fetch 3 users",
+      "ok": true,
+      "user_ids": [
+        19896444,
+        19896475,
+        19896487
+      ]
+    },
+    {
+      "step": "POST /api/campaigns/",
+      "ok": true,
+      "campaign_id": 11
+    },
+    {
+      "step": "POST recipient 19896444",
+      "ok": true,
+      "wa_message_id": "wamid.test_11_0"
+    },
+    {
+      "step": "POST recipient 19896475",
+      "ok": true,
+      "wa_message_id": "wamid.test_11_1"
+    },
+    {
+      "step": "POST recipient 19896487",
+      "ok": true,
+      "wa_message_id": "wamid.test_11_2"
+    },
+    {
+      "step": "PATCH delivered",
+      "ok": true,
+      "wa_id": "wamid.test_11_0"
+    },
+    {
+      "step": "PATCH read",
+      "ok": true,
+      "wa_id": "wamid.test_11_1"
+    },
+    {
+      "step": "PATCH replied",
+      "ok": true,
+      "wa_id": "wamid.test_11_2"
+    },
+    {
+      "step": "GET campaign",
+      "ok": true,
+      "sent_count": 3,
+      "delivered_count": 3,
+      "read_count": 2,
+      "replied_count": 1,
+      "converted_count": 0
+    },
+    {
+      "step": "assert sent_count >= 3",
+      "ok": true
+    },
+    {
+      "step": "assert delivered_count >= 3",
+      "ok": true
+    },
+    {
+      "step": "assert read_count >= 2",
+      "ok": true
+    },
+    {
+      "step": "assert replied_count >= 1",
+      "ok": true
+    },
+    {
+      "step": "assert converted_count == 0",
+      "ok": true
+    },
+    {
+      "step": "DB status counts",
+      "ok": true,
+      "delivered": 1,
+      "read": 1,
+      "replied": 1
+    },
+    {
+      "step": "cascade cleanup",
+      "ok": true,
+      "remaining_recipients": 0
+    }
+  ],
+  "timestamp_utc": "2026-05-12T02:59:55.682548+00:00",
+  "test_name": "layer-6 e2e campaign lifecycle"
+}

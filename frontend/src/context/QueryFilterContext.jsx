@@ -36,8 +36,8 @@ const EMPTY = {
 // Lets older callers that pass a single string keep working.
 const toArray = (v) => Array.isArray(v) ? v : (v ? [v] : []);
 
-// Segment names are product-prefixed in the seed (e.g. "Calls - High-Value
-// Power Users", "Virtual - Churned Low-Value Users"). The product-prefix is
+// Segment names are product-prefixed in the seed (e.g. "Calls - Regular
+// Calling Offer Users", "Virtual - Light Occasional Users"). The product-prefix is
 // the source of truth for which product the segment belongs to — segments are
 // disjoint across products. Used by setSegment to auto-sync productType so
 // picking a Virtual segment while filtered to Calls doesn't intersect to zero.

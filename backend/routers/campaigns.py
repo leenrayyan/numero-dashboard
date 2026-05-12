@@ -62,7 +62,7 @@ async def list_campaigns(
 async def create_campaign(data: CampaignCreate, db: AsyncSession = Depends(get_db)):
     c = Campaign(**data.model_dump())
     if data.status == "sent":
-        c.sent_at = datetime.now(timezone.utc)
+        c.sent_at = datetime.now(timezone.utc).replace(tzinfo=None)
         c.sent_count = data.total_targeted or 0
     db.add(c)
     await db.commit()
@@ -92,7 +92,7 @@ async def update_status(
         raise HTTPException(status_code=404, detail="Campaign not found")
     c.status = status
     if status == "sent":
-        c.sent_at = datetime.now(timezone.utc)
+        c.sent_at = datetime.now(timezone.utc).replace(tzinfo=None)
     await db.commit()
     await db.refresh(c)
     return _serialize(c)
@@ -114,7 +114,7 @@ async def upsert_recipient(
         phone_number=phone_number,
         wa_message_id=wa_message_id,
         status=status,
-        sent_at=datetime.now(timezone.utc),
+        sent_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(rec)
     await db.commit()
@@ -135,7 +135,7 @@ async def recipient_event(
     if not rec:
         return {"ok": True, "note": "recipient not found — non-campaign message"}
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     if event == "delivered" and not rec.delivered_at:
         rec.delivered_at = now
         rec.status = "delivered"

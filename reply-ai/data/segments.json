@@ -1,51 +1,51 @@
 {
-  "High Value Loyal": {
-    "description": "High-spending customers with strong purchase history and recent activity. The most valuable segment.",
-    "tone_notes": "Warm and appreciative. Treat them as VIPs — they've earned it. Light offer, emphasize exclusivity and loyalty rewards.",
+  "Calls - Regular Calling Offer Users": {
+    "description": "High-engagement Calls customers — buy calling bundles habitually and respond to offers. The Calls flagship segment.",
+    "tone_notes": "Warm and appreciative. Treat them as loyal regulars. Light incentive, emphasize the upgrade path to higher-value calling bundles.",
     "default_offers": ["CALL5", "TRAVEL5", "NUMBER5"],
     "urgency": "low"
   },
-  "High Value Customers": {
-    "description": "High-value customers across eSIM products. Profitable but may not be frequent buyers.",
-    "tone_notes": "Professional and value-forward. Acknowledge their spending history. Don't over-discount — they buy for quality.",
-    "default_offers": ["TRAVEL5", "NUMBER5", "CALL5"],
-    "urgency": "low"
-  },
-  "Mid Value At-Risk": {
-    "description": "Mid-tier customers who haven't purchased recently. Decent spend history but showing signs of churn.",
-    "tone_notes": "Friendly check-in tone. Express that you've missed them. Medium offer to re-engage without over-investing.",
-    "default_offers": ["CALL10", "ONLINE5", "NUMBER10"],
-    "urgency": "medium"
-  },
-  "Low Value Active": {
-    "description": "Lower-spending but still somewhat active customers. Worth retaining but not at high cost.",
-    "tone_notes": "Casual and friendly. Focus on value and ease-of-use. Light offer — don't over-invest.",
-    "default_offers": ["CALL5", "LOCAL5", "NUMBER5"],
-    "urgency": "low"
-  },
-  "High Value At-Risk": {
-    "description": "Previously high-value customers now showing strong churn signals. High priority to recover.",
-    "tone_notes": "Urgent but warm. Acknowledge the gap without being pushy. Substantial offer to overcome inertia.",
-    "default_offers": ["CALL15", "SAVEBIG", "NUMBER15"],
-    "urgency": "high"
-  },
-  "Churned / At-Risk Users": {
-    "description": "Customers who have fully or near-fully churned. Long dormancy, high discount needed to re-engage.",
-    "tone_notes": "Empathetic re-engagement. Don't be salesy — be human. Big offer to make it worth coming back.",
+  "Calls - Infrequent Casual Users": {
+    "description": "Low-volume Calls buyers — small Recharge / Calling Offer purchases, no habit yet.",
+    "tone_notes": "Friendly and educational. Frame calling bundles as a trial. Heavier offer if they've been quiet for a while.",
     "default_offers": ["CALL20", "SAVEBIG", "NUMBER20"],
     "urgency": "high"
   },
-  "New / Low-Value Active Users": {
-    "description": "Newer or low-spending customers still in early stages. Potential to grow.",
-    "tone_notes": "Welcoming and educational. Help them discover products. Light offer to encourage first or second purchase.",
-    "default_offers": ["CALL5", "TRAVEL5", "NUMBER5"],
+  "eSIM - High-Value Bundle Subscribers": {
+    "description": "Top-tier eSIM customers — highest spend, full eSIM / EU / regional bundle buyers.",
+    "tone_notes": "Premium and value-forward. Acknowledge their travel history. Don't over-discount — they buy for quality and coverage.",
+    "default_offers": ["TRAVEL5", "NUMBER5", "CALL5"],
     "urgency": "low"
   },
-  "Occasional High Spenders": {
-    "description": "Customers who buy infrequently but spend a lot per purchase. High AOV, low frequency.",
-    "tone_notes": "Premium and exclusive tone. They respond to quality and uniqueness, not just discounts. Medium-high offer.",
-    "default_offers": ["CALL15", "NUMBER15", "SMNUMBER10"],
+  "eSIM - High-Velocity Light Spenders": {
+    "description": "Frequent eSIM buyers but cheap purchases — many small Local eSIM transactions. Strong bundle-upgrade candidates.",
+    "tone_notes": "Casual upsell tone. Acknowledge the frequent use, suggest a Full eSIM or regional bundle as the better-value option.",
+    "default_offers": ["CALL10", "ONLINE5", "NUMBER10"],
     "urgency": "medium"
+  },
+  "eSIM - Dormant Local Data Users": {
+    "description": "One-time, low-spend eSIM customers (mostly Local eSIM) who have not returned. The largest churn-risk eSIM segment.",
+    "tone_notes": "Empathetic re-engagement. Don't be salesy — acknowledge the gap. Substantial offer to overcome inertia.",
+    "default_offers": ["CALL15", "SAVEBIG", "NUMBER15"],
+    "urgency": "high"
+  },
+  "Virtual - High-Spend Power Users": {
+    "description": "Top-tier Virtual Number customers — highest spend and purchase volume. Strong business / enterprise signal.",
+    "tone_notes": "Professional and pitch-aware. Emphasize reliability, dedicated numbers, and the EU/business plan upgrade path.",
+    "default_offers": ["NUMBER5", "CALL5", "TRAVEL5"],
+    "urgency": "low"
+  },
+  "Virtual - Mid-Tier Phone Plan Holders": {
+    "description": "Moderate-spend Virtual Number customers — solid Local Calling Plan / Phone Number buyers. Natural EU bundle / add-on upsell.",
+    "tone_notes": "Helpful and benefit-led. Position the EU Bundle or international add-on as the obvious next step. Medium incentive.",
+    "default_offers": ["NUMBER10", "CALL10", "ONLINE5"],
+    "urgency": "medium"
+  },
+  "Virtual - Light Occasional Users": {
+    "description": "Low-spend, infrequent Virtual Number buyers — minimal Phone Number activity. Activation / reactivation candidates.",
+    "tone_notes": "Welcoming, low-pressure. Lead with the use-case (a number that's easy to keep). Heavier offer if very dormant.",
+    "default_offers": ["NUMBER20", "SAVEBIG", "CALL20"],
+    "urgency": "high"
   },
   "unknown": {
     "description": "New or unclassified user — no behavioral data yet.",

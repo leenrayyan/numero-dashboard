@@ -25,6 +25,10 @@ reply-ai/chroma_db/
 backend/logs/
 *.err
 
+# --- Raw stdout dumps from test reruns (canonical evidence lives in JSON / markdown) ---
+backend/_eval_vanna_run.txt
+reply-ai/_stress_b*.txt
+
 # --- Runtime user data (chat history, conversation logs — PII) ---
 reply-ai/data/users/
 wa-gateway/data/conversations/
@@ -54,6 +58,7 @@ Thumbs.db
 # --- Claude harness ---
 .claude/launch.json
 .claude/worktrees/
+.claude/settings.local.json
 
 # --- Misc ---
 *.parquet

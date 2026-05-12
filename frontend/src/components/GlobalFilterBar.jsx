@@ -6,21 +6,17 @@ import { useGlobalFilter } from "../context/QueryFilterContext";
 import { users as usersApi } from "../api";
 
 const SEGMENTS = [
-  // Calls (4)
-  "Calls - High-Value Power Users",
-  "Calls - Active Offer-Driven Customers",
-  "Calls - At-Risk Customers",
-  "Calls - One-Time Customers",
+  // Calls (2)
+  "Calls - Regular Calling Offer Users",
+  "Calls - Infrequent Casual Users",
   // eSIM (3)
-  "eSIM - High-Value Global Power Users",
-  "eSIM - Local Data Users",
-  "eSIM - Data-Only Minimal Users",
-  // Virtual (5)
-  "Virtual - High-Value Power Users",
-  "Virtual - Loyal Infrequent Buyers",
-  "Virtual - Churned Low-Value Users",
-  "Virtual - Low-Value Single-Product Users (Local Plan)",
-  "Virtual - EU Bundle Focused Customers",
+  "eSIM - High-Value Bundle Subscribers",
+  "eSIM - High-Velocity Light Spenders",
+  "eSIM - Dormant Local Data Users",
+  // Virtual (3)
+  "Virtual - High-Spend Power Users",
+  "Virtual - Mid-Tier Phone Plan Holders",
+  "Virtual - Light Occasional Users",
 ];
 
 const PRODUCTS = ["Calls", "Data eSIM", "Virtual Number"];
@@ -58,13 +54,35 @@ function useClickOutside(ref, handler) {
 
 /**
  * Single-select dropdown — only used for the three range filters
- * (Recency, Spend, Age) since their buckets are mutually exclusive.
+ * (Recency, Spend, Age). Each bucket is mutually exclusive. In addition
+ * to the presets, a "Custom range…" entry expands two number inputs so
+ * the analyst can type any min/max combination, matching the original
+ * HTML prototype's free-text filter UX.
+ *
+ * `customPrefix`/`customSuffix` decorate the custom-range inputs (e.g.
+ * "$" for spend, "d" for days). `applyCustom` calls onSelect with a
+ * synthetic option carrying the typed min/max.
  */
-function RangeDropdown({ label, value, options, onSelect, onClear, activeColor = KPI.purple }) {
+function RangeDropdown({ label, value, options, onSelect, onClear, activeColor = KPI.purple, customPrefix = "", customSuffix = "" }) {
   const [open, setOpen] = useState(false);
+  const [customMode, setCustomMode] = useState(false);
+  const [customMin, setCustomMin] = useState("");
+  const [customMax, setCustomMax] = useState("");
   const ref = useRef();
-  useClickOutside(ref, () => setOpen(false));
+  useClickOutside(ref, () => { setOpen(false); setCustomMode(false); });
   const active = value != null;
+
+  function applyCustom() {
+    const min = customMin === "" ? null : Number(customMin);
+    const max = customMax === "" ? null : Number(customMax);
+    if (min == null && max == null) return;                // need at least one
+    if (min != null && Number.isNaN(min)) return;
+    if (max != null && Number.isNaN(max)) return;
+    const display = `${customPrefix}${min ?? 0}–${customPrefix}${max ?? "∞"}${customSuffix}`;
+    onSelect({ min, max, label: display, display });
+    setOpen(false);
+    setCustomMode(false);
+  }
 
   return (
     <div className="relative" ref={ref}>
@@ -88,18 +106,64 @@ function RangeDropdown({ label, value, options, onSelect, onClear, activeColor =
       </button>
 
       {open && (
-        <div className="absolute z-50 top-10 left-0 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[210px] py-1.5 overflow-hidden">
-          {options.map(opt => (
-            <button
-              key={opt.value ?? opt.label}
-              onClick={() => { onSelect(opt); setOpen(false); }}
-              className={`w-full text-left text-sm px-4 py-2.5 hover:bg-purple-50 hover:text-purple-700 transition ${
-                value === (opt.display ?? opt.label) ? "bg-purple-50 text-purple-700 font-semibold" : "text-gray-700"
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+        <div className="absolute z-50 top-10 left-0 bg-white border border-gray-200 rounded-xl shadow-xl min-w-[230px] py-1.5 overflow-hidden">
+          {customMode ? (
+            <div className="p-3">
+              <div className="text-[11px] text-gray-500 font-semibold mb-2 tracking-wide uppercase">Custom range</div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="relative flex-1">
+                  {customPrefix && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">{customPrefix}</span>}
+                  <input
+                    type="number"
+                    placeholder="Min"
+                    value={customMin}
+                    onChange={e => setCustomMin(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && applyCustom()}
+                    autoFocus
+                    className={`w-full border border-gray-200 rounded-lg py-1.5 text-sm outline-none focus:border-purple-400 ${customPrefix ? "pl-5 pr-2" : "px-2"}`}
+                  />
+                </div>
+                <span className="text-gray-400">–</span>
+                <div className="relative flex-1">
+                  {customPrefix && <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-gray-400 pointer-events-none">{customPrefix}</span>}
+                  <input
+                    type="number"
+                    placeholder="Max"
+                    value={customMax}
+                    onChange={e => setCustomMax(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && applyCustom()}
+                    className={`w-full border border-gray-200 rounded-lg py-1.5 text-sm outline-none focus:border-purple-400 ${customPrefix ? "pl-5 pr-2" : "px-2"}`}
+                  />
+                </div>
+              </div>
+              <div className="flex justify-between items-center">
+                <button onClick={() => setCustomMode(false)} className="text-xs text-gray-400 hover:text-gray-600">← Back to presets</button>
+                <button onClick={applyCustom} className="text-xs bg-purple-600 text-white font-semibold px-3 py-1.5 rounded-lg hover:bg-purple-700 transition">
+                  Apply
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              {options.map(opt => (
+                <button
+                  key={opt.value ?? opt.label}
+                  onClick={() => { onSelect(opt); setOpen(false); }}
+                  className={`w-full text-left text-sm px-4 py-2.5 hover:bg-purple-50 hover:text-purple-700 transition ${
+                    value === (opt.display ?? opt.label) ? "bg-purple-50 text-purple-700 font-semibold" : "text-gray-700"
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              <button
+                onClick={() => setCustomMode(true)}
+                className="w-full text-left text-sm px-4 py-2.5 border-t border-gray-100 text-purple-600 font-semibold hover:bg-purple-50 transition"
+              >
+                + Custom range…
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -254,7 +318,8 @@ export default function GlobalFilterBar() {
     : null;
 
   const ageLabel = filters.ageMin != null || filters.ageMax != null
-    ? AGE_OPTIONS.find(o => o.min === filters.ageMin && o.max === filters.ageMax)?.label ?? "Custom"
+    ? AGE_OPTIONS.find(o => o.min === filters.ageMin && o.max === filters.ageMax)?.label
+      ?? `${filters.ageMin ?? 0}–${filters.ageMax ?? "∞"}d`
     : null;
 
   const activeCount = [
@@ -348,6 +413,7 @@ export default function GlobalFilterBar() {
           onSelect={opt => setRecency(opt.min, opt.max)}
           onClear={() => setRecency(null, null)}
           activeColor={KPI.rose}
+          customSuffix="d"
         />
 
         <RangeDropdown
@@ -357,6 +423,7 @@ export default function GlobalFilterBar() {
           onSelect={opt => setSpend(opt.min, opt.max)}
           onClear={() => setSpend(null, null)}
           activeColor={KPI.green}
+          customPrefix="$"
         />
 
         <RangeDropdown
@@ -366,6 +433,7 @@ export default function GlobalFilterBar() {
           onSelect={opt => setAge(opt.min, opt.max)}
           onClear={() => setAge(null, null)}
           activeColor={KPI.purple}
+          customSuffix="d"
         />
 
         {/* NL chip — shows the smart-query question that produced the active

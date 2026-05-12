@@ -157,11 +157,10 @@ CREATE TABLE campaign_recipients (
 DOCS = [
     # Glossary / value enumerations
     "Segments are KMeans cluster names from each user's primary (highest-spend) product. "
-    "Segment values include: 'Calls - High-Value Power Users', 'Calls - Active Offer-Driven Customers', "
-    "'Calls - At-Risk Customers', 'Calls - One-Time Customers', 'eSIM - High-Value Global Power Users', "
-    "'eSIM - Local Data Users', 'eSIM - Data-Only Minimal Users', 'Virtual - High-Value Power Users', "
-    "'Virtual - Loyal Infrequent Buyers', 'Virtual - Churned Low-Value Users', "
-    "'Virtual - Low-Value Single-Product Users (Local Plan)', 'Virtual - EU Bundle Focused Customers'.",
+    "Segment values are: 'Calls - Regular Calling Offer Users', 'Calls - Infrequent Casual Users', "
+    "'eSIM - High-Value Bundle Subscribers', 'eSIM - High-Velocity Light Spenders', "
+    "'eSIM - Dormant Local Data Users', 'Virtual - High-Spend Power Users', "
+    "'Virtual - Mid-Tier Phone Plan Holders', 'Virtual - Light Occasional Users'.",
 
     "recency is days since last purchase -- lower means more recent. "
     "Dormant typically means recency >= 90; long-dormant means recency >= 365.",
@@ -297,17 +296,17 @@ QA_PAIRS = [
     # ===== AUDIENCE FILTERS (no LIMIT -- return whole matching set) ============
     ("Show me High-Value Power Users",
      "SELECT id_client, total_spent, purchase_frequency, recency, user_country, segment FROM users "
-     "WHERE segment IN ('Calls - High-Value Power Users', 'eSIM - High-Value Global Power Users', 'Virtual - High-Value Power Users') "
+     "WHERE segment IN ('Calls - Regular Calling Offer Users', 'eSIM - High-Value Bundle Subscribers', 'Virtual - High-Spend Power Users') "
      "ORDER BY total_spent DESC;"),
 
-    ("Show me Churned or At-Risk users",
+    ("Show me dormant or at-risk users",
      "SELECT id_client, total_spent, recency, segment FROM users "
-     "WHERE segment IN ('Virtual - Churned Low-Value Users', 'Calls - At-Risk Customers') "
+     "WHERE segment IN ('eSIM - Dormant Local Data Users', 'Calls - Infrequent Casual Users', 'Virtual - Light Occasional Users') "
      "ORDER BY recency DESC;"),
 
-    ("Who are the High-Value Power virtual number users?",
+    ("Who are the High-Spend virtual number users?",
      "SELECT id_client, virtual_spent, virtual_frequency, recency FROM users "
-     "WHERE segment = 'Virtual - High-Value Power Users' ORDER BY virtual_spent DESC;"),
+     "WHERE segment = 'Virtual - High-Spend Power Users' ORDER BY virtual_spent DESC;"),
 
     ("Which users haven't purchased in over a year?",
      "SELECT id_client, segment, recency, total_spent, primary_product_group FROM users "
@@ -337,21 +336,21 @@ QA_PAIRS = [
      "SELECT id_client, recency, segment, user_country, total_spent FROM users "
      "WHERE whatsapp_opted_in = true AND recency >= 90 ORDER BY recency DESC;"),
 
-    ("Show At-Risk calls users",
+    ("Show infrequent casual calls users",
      "SELECT id_client, calls_spent, calls_frequency, recency, total_spent FROM users "
-     "WHERE segment = 'Calls - At-Risk Customers' ORDER BY calls_spent DESC;"),
+     "WHERE segment = 'Calls - Infrequent Casual Users' ORDER BY calls_spent DESC;"),
 
-    ("Show EU Bundle focused virtual users",
+    ("Show mid-tier phone plan holders",
      "SELECT id_client, virtual_spent, virtual_frequency, recency FROM users "
-     "WHERE segment = 'Virtual - EU Bundle Focused Customers' ORDER BY virtual_spent DESC;"),
+     "WHERE segment = 'Virtual - Mid-Tier Phone Plan Holders' ORDER BY virtual_spent DESC;"),
 
     ("Find users with high virtual spend but long recency",
      "SELECT id_client, virtual_spent, recency, segment FROM users "
      "WHERE virtual_spent > 30 AND recency > 300 ORDER BY virtual_spent DESC;"),
 
-    ("Show local data eSIM users",
+    ("Show dormant local data eSIM users",
      "SELECT id_client, esim_spent, esim_frequency, recency, customer_age FROM users "
-     "WHERE segment = 'eSIM - Local Data Users' ORDER BY recency ASC;"),
+     "WHERE segment = 'eSIM - Dormant Local Data Users' ORDER BY recency ASC;"),
 
     ("Find users who bought USA Offers",
      "SELECT id_client, product_types, total_spent, segment FROM users "
@@ -481,7 +480,7 @@ QA_PAIRS = [
     # ===== COUNTRY-NAME ALIASES ================================================
     ("Power users in Saudi Arabia",
      "SELECT id_client, total_spent, recency, segment FROM users "
-     "WHERE segment IN ('Calls - High-Value Power Users', 'eSIM - High-Value Global Power Users', 'Virtual - High-Value Power Users') "
+     "WHERE segment IN ('Calls - Regular Calling Offer Users', 'eSIM - High-Value Bundle Subscribers', 'Virtual - High-Spend Power Users') "
      "AND user_country = 'KSA' ORDER BY total_spent DESC;"),
 
     ("How many users in Saudi Arabia?",

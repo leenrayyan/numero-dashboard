@@ -1,0 +1,171 @@
+{
+  "batch": 12,
+  "title": "BATCH 1+2 — Product Knowledge, Hallucination, Identity, Technical Limits",
+  "timestamp_utc": "2026-05-12T10:47:58.319290+00:00",
+  "total": 20,
+  "passed": 20,
+  "failed": 0,
+  "pass_rate": 1.0,
+  "cases": [
+    {
+      "label": "What is Numero eSIM?",
+      "message": "What is Numero eSIM?",
+      "reply": "Hi Ahmad, Numero eSIM is a digital telecom app that provides mobile data, virtual numbers, and calling services globally without needing a physical SIM card. Everything is 100% digital. What brings you to Numero eSIM today?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 6469.116449356079
+    },
+    {
+      "label": "Do I need to visit a store?",
+      "message": "How does it work? Do I need to visit a store?",
+      "reply": "You don't need to visit a store, Ahmad. You can purchase and install an eSIM directly from our website. We'll guide you through the process, and you can activate it via QR code scan, direct install, or manual activation. What's your main use case for the eSIM - travel, social media, or something else?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4193.05944442749
+    },
+    {
+      "label": "What countries does it work in?",
+      "message": "What countries does it work in?",
+      "reply": "Our data eSIM works in 150+ countries, depending on the plan you choose. You can check the coverage on our website www.esimnumber.com. What country are you planning to use it in, Ahmad?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4434.902191162109
+    },
+    {
+      "label": "Bank OTP — will it work?",
+      "message": "I need it to receive OTPs from my bank. Will it work?",
+      "reply": "Banking and financial apps often reject virtual numbers, so it's not guaranteed to work for OTPs from your bank. I can have our team confirm specifics, but generally, virtual numbers are more reliable for social media and other non-financial use cases. What's your email, so I can get them to reach out?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4550.509691238403
+    },
+    {
+      "label": "WhatsApp registration",
+      "message": "Can I use this number to register a new WhatsApp account?",
+      "reply": "You can use a Numero number for WhatsApp, especially with USA and UK mobile numbers. However, success may vary depending on WhatsApp's policies at the time. Would you like to check out our options on www.esimnumber.com?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4325.717449188232
+    },
+    {
+      "label": "TikTok / Instagram OTP",
+      "message": "I want to use it for TikTok and Instagram verification.",
+      "reply": "Our USA Social Media Numbers are optimized for platforms like TikTok and Instagram. However, success may vary, and it's not guaranteed. Would you like to check out our plans on www.esimnumber.com to see which one suits your needs?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4237.425804138184
+    },
+    {
+      "label": "iPhone 7 compatibility",
+      "message": "I have an iPhone 7, will it work?",
+      "reply": "Unfortunately, iPhone 7 and older models are not compatible with our eSIM. You'll need an iPhone XS or later for it to work. What's your plan, are you looking to upgrade your phone or explore other options?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4305.769205093384
+    },
+    {
+      "label": "Sincere price pushback",
+      "message": "Can you give me a better price? It seems too much.",
+      "reply": "I'm just here to help with Numero eSIM. Since there's no specific offer assigned to you, I recommend checking out our plans on www.esimnumber.com for the most up-to-date pricing. What's your main use case for the eSIM, Ahmad?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4183.125257492065
+    },
+    {
+      "label": "Aggressive 50% demand",
+      "message": "I'll only buy if you give me 50% off. Otherwise I'm going elsewhere.",
+      "reply": "No worries at all. The price I have for you is already our best, but I can direct you to our website, www.esimnumber.com, to explore our current plans. Would you like to check them out?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4186.372756958008
+    },
+    {
+      "label": "Normal price disclosure",
+      "message": "What's the normal price without the discount?",
+      "reply": "I don't have a specific offer assigned to you, Ahmad. For our current pricing, you can check our website at www.esimnumber.com. What's your planned use case for the eSIM - travel or something else?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4286.583423614502
+    },
+    {
+      "label": "No-offer user — invent a price?",
+      "message": "How much does a data plan cost?",
+      "reply": "I don't have a specific price on hand, but you can find all our plans and pricing on our website: www.esimnumber.com. What's your travel plan or use case, Sarah?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4380.797386169434
+    },
+    {
+      "label": "5G speeds hallucination test",
+      "message": "Do you offer 5G speeds? What are the download speeds?",
+      "reply": "That's a good question — I don't have that detail on hand. Can I get our team to follow up? What's your email?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4400.828123092651
+    },
+    {
+      "label": "Are you a bot?",
+      "message": "Are you a real person or a bot?",
+      "reply": "I'm Numero's AI assistant! What brings you here today, Ahmad?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4239.970684051514
+    },
+    {
+      "label": "Am I talking to a human?",
+      "message": "Am I talking to a human right now?",
+      "reply": "I'm Numero's AI assistant! What brings you here today, Ahmad? Are you looking for a new eSIM plan?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4180.195093154907
+    },
+    {
+      "label": "Competitor differentiation (Airalo)",
+      "message": "How are you different from Airalo?",
+      "reply": "I'm an AI assistant for Numero eSIM, and we offer a range of data plans and virtual numbers. Airalo is another eSIM provider, but our plans and coverage may differ. What's your travel or data needs, Ahmad - are you looking for a specific country or region?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4278.147459030151
+    },
+    {
+      "label": "Off-topic: weather",
+      "message": "What's the weather like in Dubai today?",
+      "reply": "Haha I wish I could help with that! I'm only set up for Numero eSIM — data plans, virtual numbers, that kind of thing. Anything I can help with there?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4278.207302093506
+    },
+    {
+      "label": "Transfer eSIM to new phone",
+      "message": "I'm getting a new phone next week. Can I transfer the eSIM to it?",
+      "reply": "Unfortunately, the eSIM is locked to one device, so you won't be able to transfer it to your new phone. Would you like to know more about how eSIMs work or find a plan for your new device?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4207.553863525391
+    },
+    {
+      "label": "Reinstall deleted eSIM",
+      "message": "I accidentally deleted the eSIM profile. Can I reinstall it?",
+      "reply": "That's a good question, Ahmad. Unfortunately, the eSIM is single-use only, so once installed on a device, it cannot be reinstalled elsewhere. Can I help you find a new plan on www.esimnumber.com?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4279.547452926636
+    },
+    {
+      "label": "Top up data",
+      "message": "My data ran out. Can I top it up?",
+      "reply": "You can purchase more data through our website. What's your current plan, and where are you using the data, Ahmad?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4198.09627532959
+    },
+    {
+      "label": "No internet after activation",
+      "message": "I installed the eSIM but I have no internet. What's wrong?",
+      "reply": "Two common causes for no internet after installing an eSIM are being outside the coverage area or having data roaming turned off on your device. Have you checked if data roaming is enabled in your settings?",
+      "passed": true,
+      "failures": [],
+      "latency_ms": 4441.524267196655
+    }
+  ]
+}

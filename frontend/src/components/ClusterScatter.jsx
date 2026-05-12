@@ -217,7 +217,7 @@ function makeTicks(min, max, n = 5) {
 function ChartPanel({
   title, points, colorBy, colorMap, filters, reflectionActive,
   xAxis, yAxis, isPCA, anySelected, isSegmentSelected,
-  handleClick, tickFmt, compact = false, panZoom = false,
+  handleClick, onLassoSelect, tickFmt, compact = false, panZoom = false,
 }) {
   const enriched = useMemo(() => withDerived(points), [points]);
   const bucketed = useMemo(
@@ -315,7 +315,10 @@ function ChartPanel({
       width:  Math.max(80, width),
       height: Math.max(80, height),
       pointSize: compact ? 2 : 3,
-      lassoOnLongPress: true,
+      // Native long-press lasso disabled — replaced by the custom
+      // drag-to-box-select gesture below which is more discoverable
+      // and matches the HTML prototype's `dragmode: 'select'` UX.
+      lassoOnLongPress: false,
       xScale,
       yScale,
     });
@@ -345,57 +348,172 @@ function ChartPanel({
     };
   }, [compact]);
 
-  // Pan/zoom on/off. regl-scatterplot has built-in drag-to-pan and
-  // scroll-to-zoom. When the toggle is OFF we want to suppress those
-  // BUT keep click-to-select working (so a single dot click still fires
-  // the segment filter). The trick: don't swallow mousedown/mouseup at all
-  // (a click is mousedown→mouseup with no significant movement) — only
-  // suppress the in-flight drag motion. We track whether the button is
-  // down, and on mousemove during a button-down state, swallow the event
-  // before regl sees it. The mouseup releases without any pan having
-  // accumulated, and regl's `select` event fires normally for the click.
-  // Wheel is always swallowed when off (otherwise scroll-zoom).
+  // Native box-select gesture (matches the HTML prototype's
+  // `dragmode: 'select'`): drag = draw a rectangle, release = lasso the
+  // enclosed points and push their id_client list to setLasso() via the
+  // onLassoSelect prop.
+  //
+  // Why custom instead of regl-scatterplot's built-in lasso: regl's lasso
+  // requires `lassoOnLongPress` (250ms hold first), which isn't discoverable
+  // and analysts kept reporting "lasso doesn't work". The HTML behaviour
+  // they remember is plain click-and-drag, so that's what we implement here.
+  //
+  // Click vs drag: a sub-threshold mouseup is a click — we let regl's
+  // `select` event fire naturally (single-point segment-toggle path).
+  // Above the threshold we draw an overlay div, compute hits on mouseup
+  // by intersecting `positions` with the rectangle in normalized space,
+  // adjust for the current view domain when pan/zoom has moved the camera,
+  // then call onLassoSelect(ids).
+  // Refs so the handlers below close over the latest data without forcing
+  // the effect to re-register on every render. (`positions`/`bucketed` are
+  // useMemo outputs that get new references whenever `filters` or
+  // `isSegmentSelected` shift — those happen often enough that a deps-based
+  // effect would loop unstably.)
+  const positionsRef     = useRef(positions);
+  const bucketedRef      = useRef(bucketed);
+  const liveDomainRef    = useRef(liveDomain);
+  const onLassoSelectRef = useRef(onLassoSelect);
+  useEffect(() => { positionsRef.current     = positions; },     [positions]);
+  useEffect(() => { bucketedRef.current      = bucketed; },      [bucketed]);
+  useEffect(() => { liveDomainRef.current    = liveDomain; },    [liveDomain]);
+  useEffect(() => { onLassoSelectRef.current = onLassoSelect; }, [onLassoSelect]);
+
   useEffect(() => {
     const canvas = canvasRef.current;
-    const plot = plotRef.current;
-    if (!canvas || !plot) return;
-    if (panZoom) return; // pan/zoom on → let regl handle everything
+    const container = containerRef.current;
+    if (!canvas || !container) return;
 
-    // Toggling OFF — snap the camera back so the static view is at the
-    // computed default range, not wherever the user last left it.
-    try { plot.reset(); } catch { /* noop */ }
+    // When pan/zoom is off we snap the camera home so the chart reads as a
+    // static plot. plotRef.current may not be set on the very first effect
+    // run (it's populated by the createScatterplot init effect which races
+    // with this one), but reset() can be skipped safely until then — the
+    // camera is already at its home position on mount.
+    if (!panZoom) {
+      try { plotRef.current?.reset(); } catch { /* noop */ }
+    }
 
     let dragging = false;
+    let didDrag = false;            // crossed the threshold? (suppress click)
     let startX = 0, startY = 0;
-    const DRAG_THRESHOLD_PX = 4; // ignore tiny jitters; treat as click
+    let currentX = 0, currentY = 0;
+    let overlayEl = null;
+    const DRAG_THRESHOLD_PX = 4;
 
-    const onWheel = (e) => { e.preventDefault(); e.stopPropagation(); };
-    const onMouseDown = (e) => {
-      dragging = true;
-      startX = e.clientX; startY = e.clientY;
+    const removeOverlay = () => {
+      if (overlayEl) { overlayEl.remove(); overlayEl = null; }
     };
+
+    const onWheel = (e) => {
+      // Pan/zoom off → swallow scroll so the page scrolls instead of regl zooming.
+      if (panZoom) return;
+      e.preventDefault(); e.stopPropagation();
+    };
+
+    const onMouseDown = (e) => {
+      if (e.button !== 0) return; // primary only
+      dragging = true; didDrag = false;
+      startX = e.clientX; startY = e.clientY;
+      currentX = e.clientX; currentY = e.clientY;
+    };
+
     const onMouseMove = (e) => {
       if (!dragging) return;
-      const dx = Math.abs(e.clientX - startX);
-      const dy = Math.abs(e.clientY - startY);
-      if (dx > DRAG_THRESHOLD_PX || dy > DRAG_THRESHOLD_PX) {
-        // Real drag in progress → block regl from translating the camera.
-        e.stopPropagation();
+      currentX = e.clientX; currentY = e.clientY;
+      const dx = Math.abs(currentX - startX);
+      const dy = Math.abs(currentY - startY);
+      if (dx <= DRAG_THRESHOLD_PX && dy <= DRAG_THRESHOLD_PX) return;
+
+      didDrag = true;
+      // Suppress regl from interpreting this drag as a pan when pan/zoom
+      // is off. When pan/zoom is on we let regl pan freely AND draw our
+      // rectangle in parallel — the rectangle still works as a visual,
+      // but for a strict pan-first UX we exit early in that mode.
+      if (!panZoom) e.stopPropagation();
+
+      if (!overlayEl) {
+        overlayEl = document.createElement("div");
+        overlayEl.style.cssText = [
+          "position:absolute",
+          "border:1.5px dashed #7b2ff7",
+          "background:rgba(123,47,247,0.10)",
+          "pointer-events:none",
+          "z-index:6",
+          "border-radius:2px",
+        ].join(";");
+        container.appendChild(overlayEl);
       }
+      const cr = container.getBoundingClientRect();
+      const x1 = Math.min(startX, currentX) - cr.left;
+      const y1 = Math.min(startY, currentY) - cr.top;
+      overlayEl.style.left = x1 + "px";
+      overlayEl.style.top  = y1 + "px";
+      overlayEl.style.width  = Math.abs(currentX - startX) + "px";
+      overlayEl.style.height = Math.abs(currentY - startY) + "px";
     };
-    const onMouseUpOrLeave = () => { dragging = false; };
+
+    const onMouseUp = () => {
+      if (!dragging) return;
+      dragging = false;
+      removeOverlay();
+      if (!didDrag) return; // click path — regl's `select` event handles it
+
+      // Convert the dragged pixel rectangle into normalized regl coords
+      // (the same space we feed `positions`). Then, if the camera has
+      // moved, remap through liveDomain so the hit-test corresponds to
+      // what the user actually sees.
+      const cr = canvas.getBoundingClientRect();
+      const px2norm = (px, py) => [
+        ((px - cr.left) / cr.width) * 2 - 1,
+        1 - ((py - cr.top) / cr.height) * 2,
+      ];
+      const [nx1, ny1] = px2norm(startX, startY);
+      const [nx2, ny2] = px2norm(currentX, currentY);
+      let xMin = Math.min(nx1, nx2), xMax = Math.max(nx1, nx2);
+      let yMin = Math.min(ny1, ny2), yMax = Math.max(ny1, ny2);
+
+      // liveDomain reports regl's CURRENT visible window in our normalized
+      // coord space. Default ([-1,1]) means no remap needed.
+      const ld = liveDomainRef.current;
+      if (ld && ld.x && ld.y) {
+        const map = (v, dom) => dom[0] + ((v + 1) / 2) * (dom[1] - dom[0]);
+        xMin = map(xMin, ld.x); xMax = map(xMax, ld.x);
+        yMin = map(yMin, ld.y); yMax = map(yMax, ld.y);
+      }
+
+      const pos = positionsRef.current;
+      const buc = bucketedRef.current;
+      const hits = [];
+      for (let i = 0; i < pos.length; i++) {
+        const p = pos[i];
+        if (!p) continue;
+        const x = p[0], y = p[1];
+        if (x >= xMin && x <= xMax && y >= yMin && y <= yMax) hits.push(i);
+      }
+      if (hits.length === 0) return;
+
+      const ids = hits.map(i => buc[i]?.id_client).filter(Boolean);
+      if (ids.length > 0) onLassoSelectRef.current?.(ids);
+      // Read plotRef lazily — same race-with-init reason as above.
+      try { plotRef.current?.select(hits); } catch { /* noop */ }
+    };
+
+    const onMouseLeave = () => {
+      // If the user drags out of the canvas we still want a clean release.
+      if (dragging) onMouseUp();
+    };
 
     canvas.addEventListener("wheel", onWheel, { capture: true, passive: false });
     canvas.addEventListener("mousedown", onMouseDown, { capture: true });
-    canvas.addEventListener("mousemove", onMouseMove, { capture: true });
-    window.addEventListener("mouseup", onMouseUpOrLeave, { capture: true });
-    canvas.addEventListener("mouseleave", onMouseUpOrLeave, { capture: true });
+    window.addEventListener("mousemove", onMouseMove, { capture: true });
+    window.addEventListener("mouseup", onMouseUp, { capture: true });
+    canvas.addEventListener("mouseleave", onMouseLeave, { capture: true });
     return () => {
+      removeOverlay();
       canvas.removeEventListener("wheel", onWheel, { capture: true });
       canvas.removeEventListener("mousedown", onMouseDown, { capture: true });
-      canvas.removeEventListener("mousemove", onMouseMove, { capture: true });
-      window.removeEventListener("mouseup", onMouseUpOrLeave, { capture: true });
-      canvas.removeEventListener("mouseleave", onMouseUpOrLeave, { capture: true });
+      window.removeEventListener("mousemove", onMouseMove, { capture: true });
+      window.removeEventListener("mouseup", onMouseUp, { capture: true });
+      canvas.removeEventListener("mouseleave", onMouseLeave, { capture: true });
     };
   }, [panZoom]);
 
@@ -413,6 +531,17 @@ function ChartPanel({
       plot.clear();
     }
   }, [positions, palette]);
+
+  // Lasso ↔ external clear sync: if the lasso chip's X is clicked (or the
+  // global filter bar clears it), wipe regl-scatterplot's internal selection
+  // highlight too so the dimmed-out faded look goes away.
+  useEffect(() => {
+    const plot = plotRef.current;
+    if (!plot) return;
+    if (!filters?.lassoUserIds?.length) {
+      try { plot.deselect(); } catch { /* noop */ }
+    }
+  }, [filters?.lassoUserIds]);
 
   // Hover + click subscriptions. We re-subscribe whenever the underlying
   // `bucketed` array changes so tooltip/click see the right point.
@@ -433,10 +562,18 @@ function ChartPanel({
     const onOut = () => setHover(null);
     const onSelect = ({ points: sel }) => {
       if (!sel?.length) return;
+      // Lasso path: long-press-drag encloses multiple points → ship the
+      // id_client list to the global filter so the rest of the page (and
+      // /campaigns) targets exactly this audience. Keep regl's selection
+      // highlight in place so the user sees what they grabbed.
+      if (sel.length > 1) {
+        const ids = sel.map(i => bucketed[i]?.id_client).filter(Boolean);
+        if (ids.length > 0) onLassoSelect?.(ids);
+        return;
+      }
+      // Single click → segment-toggle path (unchanged).
       const p = bucketed[sel[0]];
       if (p) handleClick({ ...p });
-      // Don't keep regl-scatterplot's own selection state — it isn't meaningful
-      // for our segment-toggle model. Clear it so the next click fires again.
       try { plot.deselect(); } catch { /* noop */ }
     };
     plot.subscribe("pointOver", onOver);
@@ -599,7 +736,7 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment, readO
     : (selectedSegment ? [selectedSegment] : []);
   const anySelected = selectedSegments.length > 0;
   const isSegmentSelected = (seg) => selectedSegments.includes(seg);
-  const { clearLasso, filters, hasActiveFilter, setProductType } = useGlobalFilter();
+  const { clearLasso, filters, hasActiveFilter, setProductType, setLasso } = useGlobalFilter();
 
   // Quick product-switch tabs (rendered just under the panel title).
   // No "All Products" tab — each product was clustered in its own PCA space,
@@ -888,6 +1025,7 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment, readO
           anySelected={anySelected}
           isSegmentSelected={isSegmentSelected}
           handleClick={handleClick}
+          onLassoSelect={setLasso}
           tickFmt={tickFmt}
           panZoom={panZoom}
         />
@@ -895,6 +1033,8 @@ export default function ClusterScatter({ onSelectSegment, selectedSegment, readO
       <p className="text-xs text-gray-400 mt-1 text-center">
         Coloured by <strong>{colorByLabel(colorBy)}</strong>
         {colorBy === "segment" && " · click a point to filter by that segment"}
+        <span className="text-gray-300"> · </span>
+        <span className="text-gray-500">drag to box-select users</span>
       </p>
     </Panel>
   );

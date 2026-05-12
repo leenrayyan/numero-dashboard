@@ -12,8 +12,10 @@ evidence.
 
 | #  | Date         | Component        | What we tested                                    | Result | File |
 |----|--------------|------------------|---------------------------------------------------|--------|------|
-| 01 | 2026-05-10   | wa-gateway       | Meta webhook HMAC-SHA256 signature verification    | ✅ PASS | [01-webhook-signature.md](./01-webhook-signature.md) |
-| 02 | 2026-05-10   | PostgreSQL       | FK constraints on `campaign_recipients` (rejection + cascade delete) | ✅ PASS | [02-fk-constraints.md](./02-fk-constraints.md) |
+| 01 | 2026-05-10   | wa-gateway       | Meta webhook HMAC-SHA256 signature verification    | ✅ PASS (4/4) | [01-webhook-signature.md](./01-webhook-signature.md) |
+| 02 | 2026-05-10   | PostgreSQL       | FK constraints on `campaign_recipients` (rejection + cascade delete) | ✅ PASS (3/3) | [02-fk-constraints.md](./02-fk-constraints.md) |
+| 03 | 2026-05-10   | backend / Vanna  | Smart Query NL→SQL evaluation (22 declarative cases) | ✅ PASS (20/22) | [03-smart-query.md](./03-smart-query.md) |
+| 04 | 2026-05-10   | reply-ai         | LLM adversarial robustness (3 batches, 19 cases)   | ✅ PASS (19/19 after prompt + predicate fixes) | [04-llm-robustness.md](./04-llm-robustness.md) |
 
 <!-- New entries: append a row above and add a corresponding markdown file. -->
 

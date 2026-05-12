@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Users, DollarSign, Clock, TrendingUp, Megaphone, UserX, Layers, BarChart3, MousePointerClick } from "lucide-react";
+import { Users, DollarSign, Clock, TrendingUp, Megaphone, UserX, Layers, BarChart3, MousePointerClick, Calendar } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, XAxis, YAxis, CartesianGrid,
@@ -123,6 +123,18 @@ export default function Dashboard() {
   ).map(([name, revenue]) => ({ name, revenue: Math.round(revenue) }))
    .sort((a, b) => b.revenue - a.revenue), [segments]);
 
+  // Per-product user count — the "Customers by product type" bar chart from
+  // the original HTML prototype. Rolls up segmentation rows by product_group
+  // so the three product columns (Calls / Data eSIM / Virtual Number) line
+  // up with the rest of the dashboard.
+  const productUsers = useMemo(() => Object.entries(
+    segments.reduce((acc, s) => {
+      if (s.product_group) acc[s.product_group] = (acc[s.product_group] || 0) + (s.user_count || 0);
+      return acc;
+    }, {})
+  ).map(([name, users]) => ({ name, users }))
+   .sort((a, b) => b.users - a.users), [segments]);
+
   // Power BI–style cross-filtering: clicks on visuals push their value into the
   // global filter context (top filter bar reflects the change). Clicking the
   // already-active value toggles it off. Disabled when crossFilter === false.
@@ -182,13 +194,15 @@ export default function Dashboard() {
       <SmartQueryBar />
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4 mb-5">
+      <div className="grid grid-cols-5 gap-4 mb-5">
         <KPICard title="Dormant Users"  value={loading ? "—" : fmt(overview?.dormant_users)}
           subtitle="total in dataset" icon={Users} gradient={KPI_GRADIENTS.purple} />
         <KPICard title="Total Revenue"  value={loading || !overview?.total_revenue ? "—" : `$${(overview.total_revenue/1000).toFixed(1)}k`}
           subtitle="lifetime spend" icon={DollarSign} gradient={KPI_GRADIENTS.green} />
         <KPICard title="Avg Inactivity" value={loading || !overview?.avg_recency_days ? "—" : `${overview.avg_recency_days}d`}
           subtitle="days since last purchase" icon={Clock} gradient={KPI_GRADIENTS.rose} />
+        <KPICard title="Avg Customer Age" value={loading || !overview?.avg_customer_age_days ? "—" : `${overview.avg_customer_age_days}d`}
+          subtitle="days since signup" icon={Calendar} gradient={KPI_GRADIENTS.coral} />
         <KPICard title="Avg Spend/User" value={loading || !overview?.avg_revenue_per_user ? "—" : `$${overview.avg_revenue_per_user}`}
           subtitle="avg lifetime value" icon={TrendingUp} gradient={KPI_GRADIENTS.indigo} />
       </div>
@@ -278,8 +292,8 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Row 2: Segment donut + Revenue by product + Dormancy distribution + Funnel */}
-      <div className="grid grid-cols-4 gap-4 mb-4">
+      {/* Row 2: Segment donut + Users by product + Revenue by product + Dormancy distribution + Funnel */}
+      <div className="grid grid-cols-5 gap-4 mb-4">
         <div className="card">
           <h2 className="font-semibold text-gray-800 text-xl mb-1">Segment distribution</h2>
           <p className="text-base text-gray-400 mb-3">Click a slice to filter by segment</p>
@@ -336,6 +350,26 @@ export default function Dashboard() {
                 })}
               </div>
             </>
+          )}
+        </div>
+
+        <div className="card">
+          <h2 className="font-semibold text-gray-800 text-xl mb-1">Users by product</h2>
+          <p className="text-base text-gray-400 mb-3">Customer count per product group</p>
+          {loading ? <div className="h-44 animate-pulse bg-gray-50 rounded" /> : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={productUsers} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f5f5f5" />
+                <XAxis dataKey="name" tick={{ fontSize: 12, fill: "#6b7280" }} interval={0} />
+                <YAxis tick={{ fontSize: 13, fill: "#6b7280" }} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}k` : v} />
+                <Tooltip formatter={v => [v.toLocaleString(), "Users"]} />
+                <Bar dataKey="users" radius={[4, 4, 0, 0]} onClick={handleProductClick} style={{ cursor: "pointer" }}>
+                  {productUsers.map(p => (
+                    <Cell key={p.name} fill={PRODUCT_COLORS[p.name] || KPI.purple} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           )}
         </div>
 

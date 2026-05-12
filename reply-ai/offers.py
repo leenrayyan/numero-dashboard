@@ -32,15 +32,20 @@ def get_offer_for_user(segment: str, product_group: str, recency_days: int) -> d
     then picks a hardcoded promo code per (product, tier). Pure deterministic
     decision tree; no model or LLM involved.
     """
+    # Tiers mirror frontend/src/pages/Campaigns.jsx TIER_MAP — v3 segment names.
     TIER_MAP = {
-        "High Value Loyal":             1,
-        "High Value Customers":         1,
-        "New / Low-Value Active Users": 1,
-        "Low Value Active":             2,
-        "Mid Value At-Risk":            2,
-        "Occasional High Spenders":     3,
-        "High Value At-Risk":           3,
-        "Churned / At-Risk Users":      4,
+        # Tier 1 — top-of-tier loyalists, light incentive
+        "Calls - Regular Calling Offer Users":   1,
+        "eSIM - High-Value Bundle Subscribers":  1,
+        "Virtual - High-Spend Power Users":      1,
+        # Tier 2 — mid-tier upsell candidates
+        "eSIM - High-Velocity Light Spenders":   2,
+        "Virtual - Mid-Tier Phone Plan Holders": 2,
+        # Tier 3 — at-risk / dormant within product
+        "eSIM - Dormant Local Data Users":       3,
+        # Tier 4 — low-value casual, heaviest reactivation push
+        "Calls - Infrequent Casual Users":       4,
+        "Virtual - Light Occasional Users":      4,
     }
     tier = TIER_MAP.get(segment, 2)
 

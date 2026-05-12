@@ -1,0 +1,173 @@
+<mxfile host="app.diagrams.net" modified="2026-05-12T00:00:00.000Z" agent="hand-authored" version="22.0.0" type="device">
+  <diagram name="UseCase" id="usecase_numero">
+    <mxGraphModel dx="1600" dy="1000" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ============== TITLE ============== -->
+        <mxCell id="title" value="Numero Reactivation — Use Case Diagram" style="text;html=1;align=center;verticalAlign=middle;fontSize=18;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="1574" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="One primary actor (Analyst) interacts with the dashboard. Two secondary actors represent the WhatsApp side: the Meta API drives campaign-status updates via webhook, and the Dormant Customer replies through the reply-ai bot." style="text;html=1;align=center;verticalAlign=middle;fontSize=11;fontStyle=2;fillColor=none;strokeColor=none;fontColor=#555555;" vertex="1" parent="1">
+          <mxGeometry x="40" y="52" width="1574" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- ============== SYSTEM BOUNDARY ============== -->
+        <mxCell id="sys_boundary" value="Dormant Users Reactivation Engine" style="rounded=0;whiteSpace=wrap;html=1;verticalAlign=top;align=center;fillColor=#f5f5fb;strokeColor=#6b21a8;strokeWidth=2;fontSize=13;fontStyle=1;fontColor=#6b21a8;spacingTop=10;" vertex="1" parent="1">
+          <mxGeometry x="320" y="100" width="1020" height="900" as="geometry" />
+        </mxCell>
+
+        <!-- ============== PRIMARY ACTOR — ANALYST ============== -->
+        <mxCell id="analyst" value="Analyst&#10;(Marketing / CRM)" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;html=1;outlineConnect=0;fillColor=#ffffff;strokeColor=#1f4e8a;strokeWidth=2;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="140" y="480" width="50" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ============== SECONDARY ACTORS ============== -->
+        <mxCell id="meta" value="WhatsApp Cloud API&#10;(Meta)" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;html=1;outlineConnect=0;fillColor=#ffffff;strokeColor=#7c2d12;strokeWidth=2;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="280" width="50" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="customer" value="Dormant Customer" style="shape=umlActor;verticalLabelPosition=bottom;labelBackgroundColor=none;verticalAlign=top;html=1;outlineConnect=0;fillColor=#ffffff;strokeColor=#7c2d12;strokeWidth=2;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="1470" y="720" width="50" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ============== ANALYST USE CASES (left/centre column) ============== -->
+        <mxCell id="uc_dashboard" value="View Dashboard" style="ellipse;whiteSpace=wrap;html=1;fillColor=#eef4fa;strokeColor=#1f4e8a;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="160" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc_filter" value="Filter / Drill Down" style="ellipse;whiteSpace=wrap;html=1;fillColor=#eef4fa;strokeColor=#1f4e8a;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="250" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc_smartquery" value="Run Smart Query&#10;(natural language)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#faf5ff;strokeColor=#6b21a8;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="340" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc_dormant" value="View Dormant Users&#10;&amp; Reactivation Scores" style="ellipse;whiteSpace=wrap;html=1;fillColor=#eef4fa;strokeColor=#1f4e8a;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="440" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc_audience" value="Build Audience" style="ellipse;whiteSpace=wrap;html=1;fillColor=#eef4fa;strokeColor=#1f4e8a;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="540" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc_send" value="Send Reactivation&#10;Campaign" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fefce8;strokeColor=#a16207;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="630" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc_perf" value="View Campaign&#10;Performance" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fefce8;strokeColor=#a16207;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="730" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc_export" value="Export CSV" style="ellipse;whiteSpace=wrap;html=1;fillColor=#eef4fa;strokeColor=#1f4e8a;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="830" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc_health" value="Check Service Health" style="ellipse;whiteSpace=wrap;html=1;fillColor=#eef4fa;strokeColor=#1f4e8a;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="380" y="920" width="200" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- ============== WHATSAPP-SIDE USE CASES (right column) ============== -->
+        <mxCell id="uc_deliver" value="Deliver Message&#10;to Customer" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#7c2d12;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="240" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc_status" value="Receive Delivery&#10;&amp; Read Updates" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#7c2d12;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="350" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <mxCell id="uc_reply" value="Reply to Campaign&#10;(handled by RAG bot)" style="ellipse;whiteSpace=wrap;html=1;fillColor=#fff7ed;strokeColor=#7c2d12;strokeWidth=2;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="1080" y="690" width="200" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ============== INCLUDE / EXTEND RELATIONSHIPS ============== -->
+        <!-- Send Campaign «include» Build Audience -->
+        <mxCell id="inc_send_aud" value="«include»" style="endArrow=open;endFill=0;html=1;dashed=1;strokeColor=#374151;fontSize=10;fontStyle=2;labelBackgroundColor=#f5f5fb;" edge="1" parent="1" source="uc_send" target="uc_audience">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Build Audience «extend» Run Smart Query (smart query is one optional way to build) -->
+        <mxCell id="ext_aud_sq" value="«extend»" style="endArrow=open;endFill=0;html=1;dashed=1;strokeColor=#374151;fontSize=10;fontStyle=2;labelBackgroundColor=#f5f5fb;" edge="1" parent="1" source="uc_smartquery" target="uc_audience">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Build Audience «extend» Filter (filter bar is the other way) -->
+        <mxCell id="ext_aud_filter" value="«extend»" style="endArrow=open;endFill=0;html=1;dashed=1;strokeColor=#374151;fontSize=10;fontStyle=2;labelBackgroundColor=#f5f5fb;" edge="1" parent="1" source="uc_filter" target="uc_audience">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Send Campaign → Deliver Message (system-side, WhatsApp owns) -->
+        <mxCell id="link_send_deliver" style="endArrow=none;html=1;rounded=0;strokeColor=#374151;strokeWidth=1.5;" edge="1" parent="1" source="uc_send" target="uc_deliver">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- View Campaign Performance «include» Receive Delivery Updates -->
+        <mxCell id="inc_perf_status" value="«include»" style="endArrow=open;endFill=0;html=1;dashed=1;strokeColor=#374151;fontSize=10;fontStyle=2;labelBackgroundColor=#f5f5fb;" edge="1" parent="1" source="uc_perf" target="uc_status">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============== ANALYST → USE CASES (associations) ============== -->
+        <mxCell id="a1" style="endArrow=none;html=1;rounded=0;strokeColor=#1f4e8a;strokeWidth=1.5;" edge="1" parent="1" source="analyst" target="uc_dashboard">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a2" style="endArrow=none;html=1;rounded=0;strokeColor=#1f4e8a;strokeWidth=1.5;" edge="1" parent="1" source="analyst" target="uc_filter">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a3" style="endArrow=none;html=1;rounded=0;strokeColor=#1f4e8a;strokeWidth=1.5;" edge="1" parent="1" source="analyst" target="uc_smartquery">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a4" style="endArrow=none;html=1;rounded=0;strokeColor=#1f4e8a;strokeWidth=1.5;" edge="1" parent="1" source="analyst" target="uc_dormant">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a5" style="endArrow=none;html=1;rounded=0;strokeColor=#1f4e8a;strokeWidth=1.5;" edge="1" parent="1" source="analyst" target="uc_audience">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a6" style="endArrow=none;html=1;rounded=0;strokeColor=#1f4e8a;strokeWidth=1.5;" edge="1" parent="1" source="analyst" target="uc_send">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a7" style="endArrow=none;html=1;rounded=0;strokeColor=#1f4e8a;strokeWidth=1.5;" edge="1" parent="1" source="analyst" target="uc_perf">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a8" style="endArrow=none;html=1;rounded=0;strokeColor=#1f4e8a;strokeWidth=1.5;" edge="1" parent="1" source="analyst" target="uc_export">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="a9" style="endArrow=none;html=1;rounded=0;strokeColor=#1f4e8a;strokeWidth=1.5;" edge="1" parent="1" source="analyst" target="uc_health">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============== META → USE CASES ============== -->
+        <mxCell id="m1" style="endArrow=none;html=1;rounded=0;strokeColor=#7c2d12;strokeWidth=1.5;" edge="1" parent="1" source="meta" target="uc_deliver">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="m2" style="endArrow=none;html=1;rounded=0;strokeColor=#7c2d12;strokeWidth=1.5;" edge="1" parent="1" source="meta" target="uc_status">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============== CUSTOMER → REPLY ============== -->
+        <mxCell id="c1" style="endArrow=none;html=1;rounded=0;strokeColor=#7c2d12;strokeWidth=1.5;" edge="1" parent="1" source="customer" target="uc_reply">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- ============== LEGEND ============== -->
+        <mxCell id="legend_frame" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#cccccc;strokeWidth=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="1020" width="1574" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="legend_title" value="Legend" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fillColor=none;strokeColor=none;" vertex="1" parent="1">
+          <mxGeometry x="55" y="1028" width="100" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg1" value="Solid line: actor–use-case association · Dashed arrow: «include» / «extend» relationship" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fillColor=none;strokeColor=none;fontColor=#374151;" vertex="1" parent="1">
+          <mxGeometry x="55" y="1050" width="900" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg2" value="Blue fill = dashboard / analytics use cases · Purple fill = LLM-driven · Yellow fill = campaign workflow · Orange fill = WhatsApp-channel (system-initiated)" style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fillColor=none;strokeColor=none;fontColor=#374151;" vertex="1" parent="1">
+          <mxGeometry x="55" y="1072" width="1500" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="leg3" value="Note: there is no authentication or admin role in the deployed system. Data refresh (running seed.py / ingest_reactivation_scores.py) is a CLI operation performed outside the dashboard and is not shown here." style="text;html=1;align=left;verticalAlign=middle;fontSize=11;fontStyle=2;fillColor=none;strokeColor=none;fontColor=#6b7280;" vertex="1" parent="1">
+          <mxGeometry x="55" y="1098" width="1500" height="30" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

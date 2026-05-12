@@ -39,7 +39,7 @@ export const segmentation = {
 
 export const clusters = {
   list:  (params)      => api.get("/api/clusters/",       { params }),
-  // Lookup by segment NAME (e.g. "Calls - High-Value Power Users") — cluster
+  // Lookup by segment NAME (e.g. "Calls - Regular Calling Offer Users") — cluster
   // IDs aren't unique across products and the old `/clusters/{id}/users`
   // endpoint silently returned mixed-product users. Segment names are unique.
   usersBySegment: (segmentName, params) =>

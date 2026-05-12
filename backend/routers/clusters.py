@@ -88,7 +88,7 @@ async def get_segment_users(
     IDs aren't unique across products (Calls / eSIM / Virtual each independently
     have clusters 0..N), so filtering by cluster_id alone returned a mix of
     users from different cluster meanings. Segment names ARE unique by design
-    ("Calls - High-Value Power Users" only ever refers to the Calls cluster),
+    ("Calls - Regular Calling Offer Users" only ever refers to the Calls cluster),
     so they're the correct identifier here.
     """
     q = select(User).where(User.segment == segment_name)

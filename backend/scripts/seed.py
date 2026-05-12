@@ -237,8 +237,13 @@ def seed(raw_csv: str):
           f"eSIM: {len(esim_df):,}    Virtual: {len(virtual_df):,}")
 
     # Load raw for enrichment fields ----------------------------------------
+    # Only read the 6 columns we actually use for enrichment. The raw CSV is
+    # ~92 MB / ~580 k rows; loading everything balloons RAM and OpenBLAS
+    # fails to allocate on low-memory machines mid-merge.
     print(f"Loading raw transactions from {raw_csv}...")
-    raw_df = pd.read_csv(raw_csv, low_memory=False)
+    RAW_USECOLS = ["id_client", "register_date", "purchase_date",
+                   "email", "product_type", "prodcut"]
+    raw_df = pd.read_csv(raw_csv, usecols=RAW_USECOLS, low_memory=False)
     raw_df = raw_df.rename(columns={"prodcut": "product"})
     # MM/DD/YYYY US format. format='mixed' handles both M/D and MM/DD.
     raw_df["purchase_date"] = pd.to_datetime(raw_df["purchase_date"], format="mixed", errors="coerce")
@@ -288,12 +293,12 @@ def seed(raw_csv: str):
         conn.execute(text("""
             INSERT INTO cluster_runs (run_at, n_clusters, algorithm, features_used,
                                       centroids, cluster_stats, is_active, notes)
-            VALUES (NOW(), 12, 'KMeans (per-category, behavioral features)',
+            VALUES (NOW(), 8, 'KMeans (per-category, behavioral features)',
                     '["recency","customer_age","total_purchases","total_spent",
                       "avg_order_value","unique_products","purchase_velocity",
                       "avg_gap_days","spend_<product>","share_<product>"]',
                     '[]', '{}', true,
-                    'Seeded from backend/data/clustered/ — 12 segments across Calls / eSIM / Virtual')
+                    'Seeded from backend/data/clustered/ — v3 model, 8 segments (Calls=2, eSIM=3, Virtual=3)')
         """))
         conn.commit()
 
